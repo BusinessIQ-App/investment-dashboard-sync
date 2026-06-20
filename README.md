@@ -6,10 +6,11 @@ Self-hosted portfolio dashboard: a Node.js service syncs holdings from **SnapTra
 
 Data flows in one direction: **SnapTrade** (accounts and holdings) and **Finnhub** (prices) → a Node.js **sync app** → **PostgreSQL** → **Grafana**.
 
-The sync app is two plain Node.js scripts, with no build step:
+The sync app is plain Node.js with no JavaScript build step (the Docker image just bundles it and a few support assets):
 
-* `app/sync.js` is a one-shot job. It lists SnapTrade accounts and positions, fully replaces the `holdings` table, appends to `holdings_history` and `portfolio_snapshots`, then fetches Finnhub prices for non-cash, non-mutual-fund tickers and appends them to `prices`. It runs once and exits.
+* `app/sync.js` is a one-shot job. It connects to PostgreSQL, ensures the schema exists (idempotent), fully replaces the `holdings` table, appends to `holdings_history` and `portfolio_snapshots`, then fetches Finnhub prices for non-cash, non-mutual-fund tickers and appends them to `prices`. It runs once and exits.
 * `app/sync-service.js` is a long-running HTTP service that wraps `sync.js`. It exposes `/health` and `/sync` endpoints, runs the cron schedules, and spawns `sync.js` as a child process. A `running` flag prevents overlapping syncs — a trigger received while a sync is in flight is skipped, not queued.
+* `app/render-dashboard.js` and `app/init-grafana.sh` are used by the one-shot `grafana-init` service to render the dashboard and populate Grafana's provisioning at startup (see [Dashboard rendering](#dashboard-rendering)).
 
 Price fetching is market-session aware (computed in U.S. Eastern time): `premarket`, `regular`, `afterhours`, or `closed`. When the market is closed (weekends, holidays, overnight) no price calls are made. During pre/after-hours the app prefers 1-minute candle data and falls back to the latest quote; during regular hours it uses the quote directly. Every `prices` row records the `session` and a `source` label identifying where the value came from.
 
@@ -103,7 +104,7 @@ The sync app image is published to GitHub Container Registry:
 ghcr.io/businessiq-app/investment-dashboard-sync:latest
 ```
 
-The image contains the Node.js sync application plus the baked-in Grafana dashboard template and provisioning configs that `grafana-init` uses at startup. PostgreSQL and Grafana themselves use public upstream images.
+The image contains the Node.js sync application plus baked-in assets used at startup: the Grafana dashboard template and provisioning configs (for `grafana-init`) and the idempotent database schema (applied by `sync.js`). PostgreSQL and Grafana themselves use public upstream images.
 
 ## Environment setup
 
