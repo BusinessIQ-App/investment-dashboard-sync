@@ -1,14 +1,6 @@
 # Investment Portfolio Dashboard
 
-Self-hosted investment portfolio dashboard using:
-
-* SnapTrade for brokerage account and holdings data
-* Finnhub for market price data
-* PostgreSQL for storage
-* Grafana for visualization
-* Node.js sync service for scheduled and manual portfolio syncs
-
-The project is designed to run locally, on a NAS, or on a private server using Docker Compose.
+Self-hosted portfolio dashboard: a Node.js service syncs holdings from **SnapTrade** and prices from **Finnhub** into **PostgreSQL**, visualized with **Grafana**. Runs locally, on a NAS, or on a private server via Docker Compose.
 
 ## How it works
 
