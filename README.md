@@ -14,6 +14,131 @@ The sync app is plain Node.js with no JavaScript build step (the Docker image ju
 
 Price fetching is market-session aware (computed in U.S. Eastern time): `premarket`, `regular`, `afterhours`, or `closed`. When the market is closed (weekends, holidays, overnight) no price calls are made. During pre/after-hours the app prefers 1-minute candle data and falls back to the latest quote; during regular hours it uses the quote directly. Every `prices` row records the `session` and a `source` label identifying where the value came from.
 
+## Quick start (no clone required)
+
+The published image is self-contained, so a deploy needs only **two files** in an empty directory: `docker-compose-finance.yml` and `.env-finance`. The schema, Grafana dashboard, and provisioning are all created automatically at startup.
+
+Fetch both from this repo:
+
+```bash
+mkdir investment-dashboard && cd investment-dashboard
+curl -O https://raw.githubusercontent.com/BusinessIQ-App/investment-dashboard-sync/main/docker-compose-finance.yml
+curl -o .env-finance https://raw.githubusercontent.com/BusinessIQ-App/investment-dashboard-sync/main/.env-finance.example
+```
+
+Or create them by hand from the contents below.
+
+<details>
+<summary><code>docker-compose-finance.yml</code></summary>
+
+```yaml
+services:
+  postgres:
+    image: postgres:17
+    container_name: portfolio-db
+    environment:
+      POSTGRES_DB: portfolio
+      POSTGRES_USER: portfolio
+      POSTGRES_PASSWORD: portfolio
+    volumes:
+      - portfolio_postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  # One-shot init: renders the dashboard from .env-finance and populates the
+  # Grafana provisioning + dashboards volumes from assets baked into the image.
+  # Runs to completion before Grafana starts, so the stack needs no host-side
+  # grafana/ files — just this compose file and .env-finance.
+  grafana-init:
+    image: ghcr.io/businessiq-app/investment-dashboard-sync:latest
+    container_name: portfolio-grafana-init
+    env_file: .env-finance
+    command: sh /app/init-grafana.sh
+    volumes:
+      - portfolio_grafana_provisioning:/grafana/provisioning
+      - portfolio_grafana_dashboards:/grafana/dashboards
+    restart: "no"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: portfolio-grafana
+    ports:
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - portfolio_grafana_data:/var/lib/grafana
+      - portfolio_grafana_provisioning:/etc/grafana/provisioning
+      - portfolio_grafana_dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      postgres:
+        condition: service_started
+      grafana-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  sync-service:
+    image: ghcr.io/businessiq-app/investment-dashboard-sync:latest
+    container_name: portfolio-sync-service
+    env_file: .env-finance
+    command: npm run service
+    ports:
+      - "${SYNC_HOST_PORT:-8080}:8080"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  sync:
+    image: ghcr.io/businessiq-app/investment-dashboard-sync:latest
+    env_file: .env-finance
+    command: npm run sync
+    depends_on:
+      - postgres
+    profiles:
+      - manual
+
+volumes:
+  portfolio_postgres_data:
+  portfolio_grafana_data:
+  portfolio_grafana_provisioning:
+  portfolio_grafana_dashboards:
+```
+
+The `./db/init` mount is optional — the sync app also creates the schema itself, so the stack works even if that directory does not exist on the host.
+
+</details>
+
+<details>
+<summary><code>.env-finance</code> (template — fill in your secrets)</summary>
+
+```bash
+SNAPTRADE_CLIENT_ID=
+SNAPTRADE_CONSUMER_KEY=
+SNAPTRADE_USER_ID=
+SNAPTRADE_USER_SECRET=
+FINNHUB_API_KEY=
+DATABASE_URL=postgres://portfolio:portfolio@postgres:5432/portfolio
+
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=change-this-password
+GRAFANA_HOST_PORT=3300
+SYNC_HOST_PORT=38080
+
+SYNC_PUBLIC_URL=http://localhost:38080/sync
+```
+
+</details>
+
+Then edit `.env-finance` with your SnapTrade/Finnhub credentials (see [Environment setup](#environment-setup) for what each value means) and start the stack:
+
+```bash
+docker compose -f docker-compose-finance.yml --env-file .env-finance pull
+docker compose -f docker-compose-finance.yml --env-file .env-finance up -d
+```
+
+Open Grafana at `http://localhost:3300` (or `http://SERVER_IP:3300`). The dashboard lands in the **Portfolio** folder; trigger the first data load with `curl http://localhost:38080/sync`.
+
 ## Built for Fidelity, adaptable to other sources
 
 This dashboard was originally built to pull a Fidelity portfolio into a self-hosted view by way of SnapTrade, which is the only brokerage-facing dependency. Nothing downstream of the sync app is Fidelity-specific: the database schema, Grafana dashboard, and price logic only care about generic accounts, tickers, shares, and values.
