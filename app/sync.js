@@ -1,6 +1,44 @@
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const { Client } = require('pg');
 const { Snaptrade } = require('snaptrade-typescript-sdk');
+
+// Locate the idempotent schema (CREATE TABLE/INDEX IF NOT EXISTS). Baked into the
+// image at /app/schema.sql; falls back to the repo path for local `npm run sync`.
+function findSchemaFile() {
+  const candidates = [
+    process.env.SCHEMA_PATH,
+    path.join(__dirname, 'schema.sql'),
+    path.join(__dirname, '..', 'db', 'init', '001_schema.sql')
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch (_) {
+      // ignore and try the next candidate
+    }
+  }
+
+  return null;
+}
+
+// Apply the schema on every run so the stack is self-contained: a deploy with
+// only the compose file + .env-finance (no host db/init mount) still gets its
+// tables. The SQL is idempotent, so this is a no-op once tables exist, and it
+// also heals volumes initialized before the schema was present.
+async function ensureSchema(client) {
+  const schemaFile = findSchemaFile();
+
+  if (!schemaFile) {
+    console.log('Schema file not found; skipping schema ensure (assuming tables exist).');
+    return;
+  }
+
+  await client.query(fs.readFileSync(schemaFile, 'utf8'));
+  console.log(`Ensured database schema from ${schemaFile}`);
+}
 
 function getTicker(position) {
   return (
@@ -221,6 +259,8 @@ async function main() {
   });
 
   await client.connect();
+
+  await ensureSchema(client);
 
   const runTimeResult = await client.query('SELECT NOW() AS run_time');
   const runTime = runTimeResult.rows[0].run_time;

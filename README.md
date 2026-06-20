@@ -342,7 +342,14 @@ Initial schema:
 db/init/001_schema.sql
 ```
 
-This schema runs automatically only when PostgreSQL starts with a new empty volume.
+The schema is created automatically — you never run it by hand. It is applied two ways:
+
+* On a **fresh** PostgreSQL volume, via the `db/init` mount (Postgres runs it on first init).
+* On **every sync**, by the sync app itself. The schema is idempotent
+  (`CREATE TABLE/INDEX IF NOT EXISTS`) and baked into the image, and `sync.js` applies it
+  right after connecting. This means a compose-only deploy with no `db/init` directory still
+  gets its tables on the first sync, and a database created before the schema existed heals
+  itself on the next sync.
 
 ## Backup and restore
 

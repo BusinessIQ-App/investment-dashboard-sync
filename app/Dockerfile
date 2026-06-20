@@ -18,4 +18,8 @@ COPY app/ ./
 COPY grafana/provisioning ./grafana-assets/provisioning
 COPY grafana/templates/finance_dashboard.template.json ./grafana-assets/template.json
 
+# Bake the idempotent DB schema so sync.js can ensure tables exist on every run,
+# making the stack self-contained even without a host db/init bind mount.
+COPY db/init/001_schema.sql ./schema.sql
+
 CMD ["node", "sync.js"]

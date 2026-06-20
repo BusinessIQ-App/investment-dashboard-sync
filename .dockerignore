@@ -6,12 +6,12 @@
 .env-finance.example
 *.log
 *.sql
+!db/init/001_schema.sql
 README.md
 README_INTERNAL.md
 CLAUDE.md
 LICENSE
 scripts
-db
 postgres
 docker-compose-finance.yml
 # Generated/archived dashboards are not needed in the image (template is baked instead).
