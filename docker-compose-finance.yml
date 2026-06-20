@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: portfolio-db
+    environment:
+      POSTGRES_DB: portfolio
+      POSTGRES_USER: portfolio
+      POSTGRES_PASSWORD: portfolio
+    volumes:
+      - portfolio_postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: portfolio-grafana
+    ports:
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - portfolio_grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  sync-service:
+    image: ghcr.io/businessiq-app/investment-dashboard-sync:latest
+    container_name: portfolio-sync-service
+    env_file: .env-finance
+    command: npm run service
+    ports:
+      - "${SYNC_HOST_PORT:-8080}:8080"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  sync:
+    image: ghcr.io/businessiq-app/investment-dashboard-sync:latest
+    env_file: .env-finance
+    command: npm run sync
+    depends_on:
+      - postgres
+    profiles:
+      - manual
+
+volumes:
+  portfolio_postgres_data:
+  portfolio_grafana_data:

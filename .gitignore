@@ -1,0 +1,14 @@
+.env
+.env-finance
+node_modules
+app/node_modules
+.DS_Store
+sync.log
+*.log
+*.sql
+!db/init/001_schema.sql
+portfolio_backup.sql
+grafana/dashboards/finance_dashboard.json
+grafana/archive/
+README_INTERNAL.md
+CLAUDE.md
