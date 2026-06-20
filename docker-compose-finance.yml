@@ -11,6 +11,20 @@ services:
       - ./db/init:/docker-entrypoint-initdb.d
     restart: unless-stopped
 
+  # One-shot init: renders the dashboard from .env-finance and populates the
+  # Grafana provisioning + dashboards volumes from assets baked into the image.
+  # Runs to completion before Grafana starts, so the stack needs no host-side
+  # grafana/ files — just this compose file and .env-finance.
+  grafana-init:
+    image: ghcr.io/businessiq-app/investment-dashboard-sync:latest
+    container_name: portfolio-grafana-init
+    env_file: .env-finance
+    command: sh /app/init-grafana.sh
+    volumes:
+      - portfolio_grafana_provisioning:/grafana/provisioning
+      - portfolio_grafana_dashboards:/grafana/dashboards
+    restart: "no"
+
   grafana:
     image: grafana/grafana:latest
     container_name: portfolio-grafana
@@ -21,10 +35,13 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
     volumes:
       - portfolio_grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - portfolio_grafana_provisioning:/etc/grafana/provisioning
+      - portfolio_grafana_dashboards:/var/lib/grafana/dashboards
     depends_on:
-      - postgres
+      postgres:
+        condition: service_started
+      grafana-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   sync-service:
@@ -50,3 +67,5 @@ services:
 volumes:
   portfolio_postgres_data:
   portfolio_grafana_data:
+  portfolio_grafana_provisioning:
+  portfolio_grafana_dashboards:

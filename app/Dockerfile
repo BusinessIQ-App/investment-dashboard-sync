@@ -6,10 +6,16 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY app/package*.json ./
 
 RUN npm install
 
-COPY . .
+COPY app/ ./
+
+# Bake the Grafana provisioning configs and dashboard template into the image so
+# the grafana-init container can render and provision the dashboard at startup
+# with no host-side files — the stack ships from compose + .env-finance alone.
+COPY grafana/provisioning ./grafana-assets/provisioning
+COPY grafana/templates/finance_dashboard.template.json ./grafana-assets/template.json
 
 CMD ["node", "sync.js"]

@@ -21,9 +21,9 @@ An adept user can adapt this to other data sources by replacing the SnapTrade ca
 
 ## ⚠️ Landmine: the Grafana dashboard is generated, not hand-edited
 
-`grafana/dashboards/finance_dashboard.json` is **generated** from `grafana/templates/finance_dashboard.template.json` and **will be overwritten**. Edit the template, not the generated file, then run `./scripts/render-dashboard.sh .env-finance` before starting Grafana. The render step substitutes the `__SYNC_PUBLIC_URL__` placeholder with your `SYNC_PUBLIC_URL`.
+The dashboard is **generated from a template at startup**, not hand-edited. On `docker compose up`, a one-shot `grafana-init` container renders `grafana/templates/finance_dashboard.template.json` into the dashboard Grafana provisions, substituting the `__SYNC_PUBLIC_URL__` placeholder with your `SYNC_PUBLIC_URL` from `.env-finance`. You do **not** run any render step by hand — edit the template, not the live dashboard (UI edits are overwritten on the next start).
 
-The template **must be classic Grafana dashboard JSON** (with `panels` and `templating` keys), **not** the newer V2 format (with an `elements` key). Classic provisioning silently fails to load a V2 dashboard. If you re-export from the Grafana UI, export as Classic JSON and restore the `__SYNC_PUBLIC_URL__` placeholder before rendering. See [Dashboard rendering](#dashboard-rendering) below for details.
+The template **must be classic Grafana dashboard JSON** (with `panels` and `templating` keys), **not** the newer V2 format (with an `elements` key). Classic provisioning silently fails to load a V2 dashboard. If you re-export from the Grafana UI, export as Classic JSON and restore the `__SYNC_PUBLIC_URL__` placeholder before committing. See [Dashboard rendering](#dashboard-rendering) below for details.
 
 > This project is not affiliated with, endorsed by, or sponsored by Fidelity Investments, SnapTrade, Finnhub, Grafana, PostgreSQL, Yahoo, or any other third-party service referenced in this repository. All trademarks are the property of their respective owners.
 
@@ -45,6 +45,8 @@ The template **must be classic Grafana dashboard JSON** (with `panels` and `temp
 app/
   sync.js
   sync-service.js
+  render-dashboard.js     # renders the dashboard in-container from SYNC_PUBLIC_URL
+  init-grafana.sh         # grafana-init entrypoint: provisioning + dashboard
   package.json
   Dockerfile
 
@@ -53,8 +55,7 @@ db/
     001_schema.sql
 
 grafana/
-  dashboards/
-    finance_dashboard.json
+  dashboards/             # generated at runtime into a volume; not required on disk
 
   templates/
     finance_dashboard.template.json
@@ -80,6 +81,7 @@ README.md
 The Docker Compose stack includes:
 
 * `postgres` / `portfolio-db` - PostgreSQL database
+* `grafana-init` / `portfolio-grafana-init` - one-shot init that renders the dashboard and populates the Grafana provisioning volumes, then exits (runs before Grafana)
 * `grafana` / `portfolio-grafana` - Grafana dashboard UI
 * `sync-service` / `portfolio-sync-service` - HTTP sync service and scheduler
 * `sync` - one-shot manual sync job through the `manual` Docker Compose profile
@@ -101,7 +103,7 @@ The sync app image is published to GitHub Container Registry:
 ghcr.io/businessiq-app/investment-dashboard-sync:latest
 ```
 
-The sync image contains only the Node.js sync application. PostgreSQL and Grafana use public upstream images.
+The image contains the Node.js sync application plus the baked-in Grafana dashboard template and provisioning configs that `grafana-init` uses at startup. PostgreSQL and Grafana themselves use public upstream images.
 
 ## Environment setup
 
@@ -163,58 +165,33 @@ Be careful exposing the sync endpoint publicly. It triggers live portfolio/API s
 
 ## Dashboard rendering
 
-The dashboard is generated from a template before Grafana starts.
+Rendering is **automatic** — you do not run anything by hand. On `docker compose up`, the one-shot `grafana-init` container (built from this project's image) renders the dashboard before Grafana starts:
 
-Template file:
+1. It reads `SYNC_PUBLIC_URL` from `.env-finance` (passed via `env_file`).
+2. It substitutes the `__SYNC_PUBLIC_URL__` placeholder in the baked-in template
+   (`grafana/templates/finance_dashboard.template.json`).
+3. It writes the result, plus the provisioning configs, into the
+   `portfolio_grafana_provisioning` and `portfolio_grafana_dashboards` volumes
+   that Grafana mounts.
 
-```text
-grafana/templates/finance_dashboard.template.json
+Because the template and provisioning configs are baked into the image, the stack is self-contained: deploying needs only `docker-compose-finance.yml` and `.env-finance` — no host-side `grafana/` directory and no render step.
+
+To re-render after changing `SYNC_PUBLIC_URL` or the template, pull the latest image and bring the stack back up; `grafana-init` runs again and overwrites the volumes:
+
+```bash
+docker compose -f docker-compose-finance.yml --env-file .env-finance up -d
 ```
 
-Generated file used by Grafana provisioning:
+### Optional: render locally to preview
 
-```text
-grafana/dashboards/finance_dashboard.json
-```
-
-The template contains this placeholder:
-
-```text
-__SYNC_PUBLIC_URL__
-```
-
-The render script replaces that placeholder with the value of `SYNC_PUBLIC_URL` from `.env-finance`.
-
-Run:
+`scripts/render-dashboard.sh` produces the same output on the host (handy for inspecting the JSON before committing a template change). It is not part of the deploy flow:
 
 ```bash
 ./scripts/render-dashboard.sh .env-finance
-```
-
-If the script is not executable on your system, make it executable first:
-
-```bash
-chmod +x scripts/render-dashboard.sh
-./scripts/render-dashboard.sh .env-finance
-```
-
-Or run it directly with Bash:
-
-```bash
-bash scripts/render-dashboard.sh .env-finance
-```
-
-Validate the rendered dashboard:
-
-```bash
 grep -n "Run Sync" -A10 grafana/dashboards/finance_dashboard.json
 ```
 
-You should see the rendered sync URL, for example:
-
-```text
-http://localhost:38080/sync
-```
+You should see the rendered sync URL, for example `http://localhost:38080/sync`.
 
 ## Configuring the Run Sync URL
 
@@ -248,23 +225,19 @@ If exposing the sync endpoint outside your local network, protect it with authen
 
 ## Starting the stack
 
-Render the dashboard:
-
-```bash
-./scripts/render-dashboard.sh .env-finance
-```
-
 Pull images:
 
 ```bash
 docker compose -f docker-compose-finance.yml --env-file .env-finance pull
 ```
 
-Start PostgreSQL, Grafana, and the sync service:
+Start the stack. The dashboard is rendered automatically by `grafana-init` before Grafana starts — no separate render step:
 
 ```bash
-docker compose -f docker-compose-finance.yml --env-file .env-finance up -d postgres grafana sync-service
+docker compose -f docker-compose-finance.yml --env-file .env-finance up -d
 ```
+
+(This starts PostgreSQL, `grafana-init`, Grafana, and the sync service. The one-shot `sync` container is in the `manual` profile and is not started.)
 
 Check container status:
 
@@ -315,25 +288,14 @@ docker exec -it portfolio-grafana grafana cli admin reset-admin-password NEW_PAS
 
 ## Grafana provisioning
 
-The PostgreSQL datasource is provisioned from:
+Provisioning is fully volume-based — Grafana reads it from two named volumes that `grafana-init` populates at startup from assets baked into the image:
 
-```text
-grafana/provisioning/datasources/postgres.yml
-```
+* `portfolio_grafana_provisioning` → `/etc/grafana/provisioning`
+  (the PostgreSQL datasource `postgres.yml` and the dashboard provider `dashboards.yml`)
+* `portfolio_grafana_dashboards` → `/var/lib/grafana/dashboards`
+  (the rendered `finance_dashboard.json`)
 
-The dashboard provider is provisioned from:
-
-```text
-grafana/provisioning/dashboards/dashboards.yml
-```
-
-The generated dashboard file is loaded from:
-
-```text
-grafana/dashboards/finance_dashboard.json
-```
-
-Grafana places the dashboard in the `Portfolio` folder.
+The source files live at `grafana/provisioning/` and `grafana/templates/` in this repo and are copied into the image at build time. Grafana places the dashboard in the `Portfolio` folder.
 
 ## Manual sync
 
@@ -412,28 +374,16 @@ SELECT 'portfolio_snapshots', COUNT(*) FROM portfolio_snapshots;
 
 ## Updating an existing deployment
 
-Pull latest repo changes:
-
-```bash
-git pull
-```
-
-Render the dashboard:
-
-```bash
-./scripts/render-dashboard.sh .env-finance
-```
-
 Pull latest images:
 
 ```bash
 docker compose -f docker-compose-finance.yml --env-file .env-finance pull
 ```
 
-Restart services:
+Restart services. `grafana-init` re-runs and re-renders the dashboard (picking up any `SYNC_PUBLIC_URL` or template change) before Grafana restarts:
 
 ```bash
-docker compose -f docker-compose-finance.yml --env-file .env-finance up -d postgres grafana sync-service
+docker compose -f docker-compose-finance.yml --env-file .env-finance up -d
 ```
 
 Check sync service logs:
@@ -444,10 +394,10 @@ docker compose -f docker-compose-finance.yml --env-file .env-finance logs -f syn
 
 ## Building the sync image
 
-Most users can use the published GHCR image. To build the sync image locally:
+Most users can use the published GHCR image. To build the sync image locally, build from the **repo root** (the build context includes both `app/` and the baked `grafana/` assets) with the Dockerfile at `app/Dockerfile`:
 
 ```bash
-docker build -t investment-dashboard-sync:local ./app
+docker build -f app/Dockerfile -t investment-dashboard-sync:local .
 ```
 
 To run the local image instead, update `docker-compose-finance.yml` to use:
