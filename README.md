@@ -143,7 +143,7 @@ An adept user can adapt this to other data sources by replacing the SnapTrade ca
 
 ## ⚠️ Landmine: the Grafana dashboard is generated, not hand-edited
 
-**Grafana 'finance_dashboard' edits will be overwritten. 'Save as copy' if you want edits to be persistent**
+**Grafana 'finance_dashboard' edits will be overwritten. 'Save as copy' if you want edits to be persistent!**
 
 The dashboard is **generated from a template at startup**, not hand-edited. On `docker compose up`, a one-shot `grafana-init` container renders `grafana/templates/finance_dashboard.template.json` into the dashboard Grafana provisions, substituting the `__SYNC_PUBLIC_URL__` placeholder with your `SYNC_PUBLIC_URL` from `.env-finance`. You do **not** run any render step by hand — edit the template, not the live dashboard (UI edits are overwritten on the next start).
 
