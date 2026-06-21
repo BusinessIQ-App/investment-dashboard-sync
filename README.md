@@ -4,7 +4,7 @@ Self-hosted portfolio dashboard: a Node.js service syncs holdings from **SnapTra
 
 ## How it works
 
-Data flows in one direction: **SnapTrade** (accounts and holdings) and **Finnhub** (prices) → a Node.js **sync app** → **PostgreSQL** → **Grafana**.
+Data flows in one direction: **SnapTrade** (connected to your accounts and holdings) and **Finnhub** (prices) → a Node.js **sync app** → **PostgreSQL** → **Grafana**.
 
 The sync app is plain Node.js with no JavaScript build step (the Docker image just bundles it and a few support assets):
 
