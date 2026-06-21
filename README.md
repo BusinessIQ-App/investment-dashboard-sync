@@ -2,26 +2,15 @@
 
 Self-hosted portfolio dashboard: a Node.js service syncs holdings from **SnapTrade** and prices from **Finnhub** into **PostgreSQL**, visualized with **Grafana**. Runs locally, on a NAS, or on a private server via Docker Compose.
 
+> This project is not affiliated with, endorsed by, or sponsored by Fidelity Investments, SnapTrade, Finnhub, Grafana, PostgreSQL, Yahoo, or any other third-party service referenced in this repository. All trademarks are the property of their respective owners.
+
+## Quick start (no clone required)
+
 **Quick Start Gist:**
 - Create a Snaptrade account and link your fidelity account(s) there. 
 - Create a personal Finnhub (mine is a free) account for credentials to pull current price quotes
+- Create the two files (yml & env) per the instructions below and save your secrets into the env file
 - This project will generate a DB and Grafana dashboard (Dashboards/portfolio/finance_dashboard) accessible at localhost:3300 as soon as you pull & start via the docker compose yml below 👇
-
-> This project is not affiliated with, endorsed by, or sponsored by Fidelity Investments, SnapTrade, Finnhub, Grafana, PostgreSQL, Yahoo, or any other third-party service referenced in this repository. All trademarks are the property of their respective owners.
-
-## How it works
-
-Data flows in one direction: **SnapTrade** (connected to your accounts and holdings) and **Finnhub** (prices) → a Node.js **sync app** → **PostgreSQL** → **Grafana**.
-
-The sync app is plain Node.js with no JavaScript build step (the Docker image just bundles it and a few support assets):
-
-* `app/sync.js` is a one-shot job. It connects to PostgreSQL, ensures the schema exists (idempotent), fully replaces the `holdings` table, appends to `holdings_history` and `portfolio_snapshots`, then fetches Finnhub prices for non-cash, non-mutual-fund tickers and appends them to `prices`. It runs once and exits.
-* `app/sync-service.js` is a long-running HTTP service that wraps `sync.js`. It exposes `/health` and `/sync` endpoints, runs the cron schedules, and spawns `sync.js` as a child process. A `running` flag prevents overlapping syncs — a trigger received while a sync is in flight is skipped, not queued.
-* `app/render-dashboard.js` and `app/init-grafana.sh` are used by the one-shot `grafana-init` service to render the dashboard and populate Grafana's provisioning at startup (see [Dashboard rendering](#dashboard-rendering)).
-
-Price fetching is market-session aware (computed in U.S. Eastern time): `premarket`, `regular`, `afterhours`, or `closed`. When the market is closed (weekends, holidays, overnight) no price calls are made. During pre/after-hours the app prefers 1-minute candle data and falls back to the latest quote; during regular hours it uses the quote directly. Every `prices` row records the `session` and a `source` label identifying where the value came from.
-
-## Quick start (no clone required)
 
 The published image is self-contained, so a deploy needs only **two files** in an empty directory: `docker-compose-finance.yml` and `.env-finance`. The schema, Grafana dashboard, and provisioning are all created automatically at startup.
 
@@ -206,6 +195,18 @@ docker-compose-finance.yml
 .env-finance.example
 README.md
 ```
+
+## How it works
+
+Data flows in one direction: **SnapTrade** (connected to your accounts and holdings) and **Finnhub** (prices) → a Node.js **sync app** → **PostgreSQL** → **Grafana**.
+
+The sync app is plain Node.js with no JavaScript build step (the Docker image just bundles it and a few support assets):
+
+* `app/sync.js` is a one-shot job. It connects to PostgreSQL, ensures the schema exists (idempotent), fully replaces the `holdings` table, appends to `holdings_history` and `portfolio_snapshots`, then fetches Finnhub prices for non-cash, non-mutual-fund tickers and appends them to `prices`. It runs once and exits.
+* `app/sync-service.js` is a long-running HTTP service that wraps `sync.js`. It exposes `/health` and `/sync` endpoints, runs the cron schedules, and spawns `sync.js` as a child process. A `running` flag prevents overlapping syncs — a trigger received while a sync is in flight is skipped, not queued.
+* `app/render-dashboard.js` and `app/init-grafana.sh` are used by the one-shot `grafana-init` service to render the dashboard and populate Grafana's provisioning at startup (see [Dashboard rendering](#dashboard-rendering)).
+
+Price fetching is market-session aware (computed in U.S. Eastern time): `premarket`, `regular`, `afterhours`, or `closed`. When the market is closed (weekends, holidays, overnight) no price calls are made. During pre/after-hours the app prefers 1-minute candle data and falls back to the latest quote; during regular hours it uses the quote directly. Every `prices` row records the `session` and a `source` label identifying where the value came from.
 
 ## Services
 
