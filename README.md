@@ -2,6 +2,13 @@
 
 Self-hosted portfolio dashboard: a Node.js service syncs holdings from **SnapTrade** and prices from **Finnhub** into **PostgreSQL**, visualized with **Grafana**. Runs locally, on a NAS, or on a private server via Docker Compose.
 
+**Quick Start Gist:**
+- Create a Snaptrade account and link your fidelity account(s) there. 
+- Create a personal Finnhub (mine is a free) account for credentials to pull current price quotes
+- This project will generate a DB and Grafana dashboard (Dashboards/portfolio/finance_dashboard) accessible at localhost:3300 as soon as you pull & start via the docker compose yml below 👇
+
+> This project is not affiliated with, endorsed by, or sponsored by Fidelity Investments, SnapTrade, Finnhub, Grafana, PostgreSQL, Yahoo, or any other third-party service referenced in this repository. All trademarks are the property of their respective owners.
+
 ## How it works
 
 Data flows in one direction: **SnapTrade** (connected to your accounts and holdings) and **Finnhub** (prices) → a Node.js **sync app** → **PostgreSQL** → **Grafana**.
@@ -150,8 +157,6 @@ An adept user can adapt this to other data sources by replacing the SnapTrade ca
 The dashboard is **generated from a template at startup**, not hand-edited. On `docker compose up`, a one-shot `grafana-init` container renders `grafana/templates/finance_dashboard.template.json` into the dashboard Grafana provisions, substituting the `__SYNC_PUBLIC_URL__` placeholder with your `SYNC_PUBLIC_URL` from `.env-finance`. You do **not** run any render step by hand — edit the template, not the live dashboard (UI edits are overwritten on the next start).
 
 The template **must be classic Grafana dashboard JSON** (with `panels` and `templating` keys), **not** the newer V2 format (with an `elements` key). Classic provisioning silently fails to load a V2 dashboard. If you re-export from the Grafana UI, export as Classic JSON and restore the `__SYNC_PUBLIC_URL__` placeholder before committing. See [Dashboard rendering](#dashboard-rendering) below for details.
-
-> This project is not affiliated with, endorsed by, or sponsored by Fidelity Investments, SnapTrade, Finnhub, Grafana, PostgreSQL, Yahoo, or any other third-party service referenced in this repository. All trademarks are the property of their respective owners.
 
 ## Features
 
