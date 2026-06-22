@@ -17,12 +17,13 @@ I created this primarily out of frustration that fidelity doesn't provide a line
 
 ## Quick start (no clone required)
 
-**Quick Start Gist:**
+**AT A GLANCE:**
 - Create a Snaptrade account and link your fidelity account(s) there. 
 - Create a personal Finnhub (mine is a free) account for credentials to pull current price quotes
 - Create the two files (yml & env) per the instructions below and save your secrets into the env file
 - This project will generate a DB and Grafana dashboard (Dashboards/portfolio/finance_dashboard) accessible at localhost:3300 as soon as you pull & start via the docker compose yml below 👇
 
+**THE FULL DEETS:**
 The published image is self-contained, so a deploy needs only **two files** in an empty directory: `docker-compose-finance.yml` and `.env-finance`. The schema, Grafana dashboard, and provisioning are all created automatically at startup.
 
 Fetch both from this repo:
@@ -498,13 +499,13 @@ The schema is created automatically — you never run it by hand. It is applied 
 
 ## Backup and restore
 
-Create a database backup:
+Create a FULL database backup:
 
 ```bash
 docker exec portfolio-db pg_dump -U portfolio -d portfolio > portfolio_backup.sql
 ```
 
-Restore a database backup:
+Restore a FULL database backup:
 
 ```bash
 cat portfolio_backup.sql | docker exec -i portfolio-db psql -U portfolio -d portfolio
@@ -522,6 +523,23 @@ SELECT 'prices', COUNT(*) FROM prices
 UNION ALL
 SELECT 'portfolio_snapshots', COUNT(*) FROM portfolio_snapshots;
 "
+```
+
+Backup financial tables only:
+
+```bash
+docker exec portfolio-db pg_dump --data-only --no-owner \
+    -t holdings -t holdings_history -t prices -t portfolio_snapshots \
+    -U portfolio -d portfolio | gzip > portfolio-real-backup.sql.gz
+ls -lh portfolio-real-backup.sql.gz
+```
+
+Restore financial tables only:
+
+```bash
+docker exec -i portfolio-db psql -v ON_ERROR_STOP=1 -U portfolio -d portfolio \
+    -c "TRUNCATE holdings, holdings_history, prices, portfolio_snapshots;"
+gunzip -c portfolio-real-backup.sql.gz | docker exec -i portfolio-db psql -v ON_ERROR_STOP=1 -U portfolio -d portfolio
 ```
 
 ## Updating an existing deployment
