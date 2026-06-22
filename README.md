@@ -6,13 +6,12 @@ I created this primarily out of frustration that fidelity doesn't provide a line
 
 *Screenshots below use sample/demo data, not real holdings.*
 
-![Dashboard overview](screenshots/FauxData_1.jpeg)
-
-![Portfolio and account value over time](screenshots/FauxData_2.jpeg)
-
-![Position and price history](screenshots/FauxData_3.jpeg)
-
-![Holdings detail](screenshots/FauxData_4.jpeg)
+<p align="center">
+  <img src="screenshots/FauxData_1.jpeg" width="49%" alt="Dashboard overview">
+  <img src="screenshots/FauxData_2.jpeg" width="49%" alt="Portfolio and account value over time">
+  <img src="screenshots/FauxData_3.jpeg" width="49%" alt="Position and price history">
+  <img src="screenshots/FauxData_4.jpeg" width="49%" alt="Holdings detail">
+</p>
 
 > This project is not affiliated with, endorsed by, or sponsored by Fidelity Investments, SnapTrade, Finnhub, Grafana, PostgreSQL, Yahoo, or any other third-party service referenced in this repository. All trademarks are the property of their respective owners.
 
