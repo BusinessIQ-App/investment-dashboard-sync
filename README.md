@@ -138,7 +138,7 @@ SYNC_PUBLIC_URL=http://localhost:38080/sync
 
 </details>
 
-Then edit `.env-finance` with your SnapTrade/Finnhub credentials (see [Getting your API credentials](#getting-your-api-credentials) and [Environment file setup](#environment-file-setup-env-finance) for what each value means) and start the stack:
+Then edit `.env-finance` with your SnapTrade/Finnhub credentials (see [Environment file setup](#environment-file-setup-env-finance) and [Getting your Finnhub & SnapTrade API credentials](#getting-your-finnhub-a-snaptrade-api-credentials) for what each value means) and start the stack:
 
 ```bash
 docker compose -f docker-compose-finance.yml --env-file .env-finance pull
@@ -254,7 +254,48 @@ ghcr.io/businessiq-app/investment-dashboard-sync:latest
 
 The image contains the Node.js sync application plus baked-in assets used at startup: the Grafana dashboard template and provisioning configs (for `grafana-init`) and the idempotent database schema (applied by `sync.js`). PostgreSQL and Grafana themselves use public upstream images.
 
-## Getting your API credentials
+## Environment file setup (.env-finance)
+
+Copy the example environment file:
+
+```bash
+cp .env-finance.example .env-finance
+```
+
+Edit it:
+
+```bash
+nano .env-finance
+```
+
+Required values:
+
+```bash
+FINNHUB_API_KEY=
+SNAPTRADE_CLIENT_ID=
+SNAPTRADE_CONSUMER_KEY=
+SNAPTRADE_USER_ID=
+SNAPTRADE_USER_SECRET=
+DATABASE_URL=postgres://portfolio:portfolio@postgres:5432/portfolio
+
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=change-this-password
+GRAFANA_HOST_PORT=3300
+SYNC_HOST_PORT=38080
+
+SYNC_PUBLIC_URL=http://localhost:38080/sync
+```
+
+Notes:
+
+* `GRAFANA_HOST_PORT` controls the host port for Grafana.
+* `SYNC_HOST_PORT` controls the host port for the manual sync API.
+* `SYNC_PUBLIC_URL` controls the dashboard’s **Run Sync** link.
+* `DATABASE_URL` should normally stay as `postgres://portfolio:portfolio@postgres:5432/portfolio` because containers communicate internally using the Docker service name `postgres`.
+
+The `.env-finance` file contains secrets and must not be committed.
+
+### Getting your FinnHub A& SnapTrade API credentials:
 
 You need five values for `.env-finance`. Four are copy/paste from the two providers' websites; the fifth (`SNAPTRADE_USER_SECRET`) is returned by one command.
 
@@ -263,6 +304,7 @@ You need five values for `.env-finance`. Four are copy/paste from the two provid
 - **`FINNHUB_API_KEY`** — register at <https://finnhub.io/register> (the free tier is fine), confirm your email, and copy the key from your [Finnhub dashboard](https://finnhub.io/dashboard).
 - **`SNAPTRADE_CLIENT_ID`** and **`SNAPTRADE_CONSUMER_KEY`** — sign up at <https://dashboard.snaptrade.com>, verify your email, then on the API Keys page copy the **Client ID** and **Consumer Key** (the Consumer Key is a secret — keep it private).
 - **`SNAPTRADE_USER_ID`** — for a personal SnapTrade key this is the **email you signed up with**. SnapTrade auto-creates one user for your account at signup, so you don't invent or register a new id.
+- **Link your brokerage (e.g. Fidelity):** SnapTrade needs your brokerage account connected before any holdings appear, through SnapTrade's Connection Portal. You new `http://localhost:38080/sync` API can't pull data until it's linked.
 
 **Get `SNAPTRADE_USER_SECRET` with one command:**
 
@@ -284,52 +326,9 @@ except urllib.error.HTTPError as e: print("Error",e.code,e.read().decode())
 '
 ```
 
-Paste the printed `SNAPTRADE_USER_SECRET=…` (a UUID) into `.env-finance`.
+Paste the resulting `SNAPTRADE_USER_SECRET=…` (UUID format) into `.env-finance`.
 
 > ⚠️ This **rotates** the secret — run it once and save the result. Each call invalidates the previous secret, so if you run it again you must update `.env-finance` with the new value and restart the stack.
-
-**Link your brokerage (e.g. Fidelity):** SnapTrade needs your brokerage account connected before any holdings appear, through SnapTrade's Connection Portal. Once it's linked, your first `curl http://localhost:38080/sync` pulls the data.
-
-## Environment file setup (.env-finance)
-
-Copy the example environment file:
-
-```bash
-cp .env-finance.example .env-finance
-```
-
-Edit it:
-
-```bash
-nano .env-finance
-```
-
-Required values:
-
-```bash
-SNAPTRADE_CLIENT_ID=
-SNAPTRADE_CONSUMER_KEY=
-SNAPTRADE_USER_ID=
-SNAPTRADE_USER_SECRET=
-FINNHUB_API_KEY=
-DATABASE_URL=postgres://portfolio:portfolio@postgres:5432/portfolio
-
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=change-this-password
-GRAFANA_HOST_PORT=3300
-SYNC_HOST_PORT=38080
-
-SYNC_PUBLIC_URL=http://localhost:38080/sync
-```
-
-Notes:
-
-* `GRAFANA_HOST_PORT` controls the host port for Grafana.
-* `SYNC_HOST_PORT` controls the host port for the manual sync API.
-* `SYNC_PUBLIC_URL` controls the dashboard’s **Run Sync** link.
-* `DATABASE_URL` should normally stay as `postgres://portfolio:portfolio@postgres:5432/portfolio` because containers communicate internally using the Docker service name `postgres`.
-
-The `.env-finance` file contains secrets and must not be committed.
 
 ## Exposed ports
 
