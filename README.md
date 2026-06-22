@@ -138,7 +138,7 @@ SYNC_PUBLIC_URL=http://localhost:38080/sync
 
 </details>
 
-Then edit `.env-finance` with your SnapTrade/Finnhub credentials (see [Environment setup](#environment-setup) for what each value means) and start the stack:
+Then edit `.env-finance` with your SnapTrade/Finnhub credentials (see [Getting your API credentials](#getting-your-api-credentials) and [Environment file setup](#environment-file-setup-env-finance) for what each value means) and start the stack:
 
 ```bash
 docker compose -f docker-compose-finance.yml --env-file .env-finance pull
@@ -153,13 +153,16 @@ This dashboard was originally built to pull a Fidelity portfolio into a self-hos
 
 An adept user can adapt this to other data sources by replacing the SnapTrade calls in `app/sync.js` with any system that can produce the same shape of data — accounts, positions (ticker + shares + optional cost basis), and account totals — and writing those rows into the existing `holdings`, `holdings_history`, and `portfolio_snapshots` tables. The rest of the stack will work unchanged.
 
-## ⚠️ Landmine: the Grafana dashboard is generated, not hand-edited
+## ⚠️ Customizing the dashboard (save a copy)
 
-**Grafana 'finance_dashboard' edits will be overwritten. 'Save as copy' if you want edits to be persistent!**
+The provisioned **finance_dashboard** is generated from a template at startup and is **read-only** — Grafana won't let you save edits onto it, and the `grafana-init` step re-renders (overwrites) it every time the stack starts. To keep your own customized version that survives restarts:
 
-The dashboard is **generated from a template at startup**, not hand-edited. On `docker compose up`, a one-shot `grafana-init` container renders `grafana/templates/finance_dashboard.template.json` into the dashboard Grafana provisions, substituting the `__SYNC_PUBLIC_URL__` placeholder with your `SYNC_PUBLIC_URL` from `.env-finance`. You do **not** run any render step by hand — edit the template, not the live dashboard (UI edits are overwritten on the next start).
+1. Open **Portfolio → finance_dashboard** and click **Edit**, then make your changes.
+2. Use **Save as copy** (the exact label varies slightly by Grafana version) and give it a new name.
 
-The template **must be classic Grafana dashboard JSON** (with `panels` and `templating` keys), **not** the newer V2 format (with an `elements` key). Classic provisioning silently fails to load a V2 dashboard. If you re-export from the Grafana UI, export as Classic JSON and restore the `__SYNC_PUBLIC_URL__` placeholder before committing. See [Dashboard rendering](#dashboard-rendering) below for details.
+The copy is stored in Grafana's own database (the `portfolio_grafana_data` volume), which the auto-render never touches — so it **survives restarts and image updates**, and keeps querying the same Postgres datasource automatically. It's only lost if you delete that volume (e.g. `docker compose down -v`). The original `finance_dashboard` keeps re-rendering from the template, so you always have a clean reference to copy from again.
+
+See [Dashboard rendering](#dashboard-rendering) for how the template is rendered.
 
 ## Features
 
@@ -251,7 +254,44 @@ ghcr.io/businessiq-app/investment-dashboard-sync:latest
 
 The image contains the Node.js sync application plus baked-in assets used at startup: the Grafana dashboard template and provisioning configs (for `grafana-init`) and the idempotent database schema (applied by `sync.js`). PostgreSQL and Grafana themselves use public upstream images.
 
-## Environment setup
+## Getting your API credentials
+
+You need five values for `.env-finance`. Four are copy/paste from the two providers' websites; the fifth (`SNAPTRADE_USER_SECRET`) is returned by one command.
+
+**Copy these from the browser:**
+
+- **`FINNHUB_API_KEY`** — register at <https://finnhub.io/register> (the free tier is fine), confirm your email, and copy the key from your [Finnhub dashboard](https://finnhub.io/dashboard).
+- **`SNAPTRADE_CLIENT_ID`** and **`SNAPTRADE_CONSUMER_KEY`** — sign up at <https://dashboard.snaptrade.com>, verify your email, then on the API Keys page copy the **Client ID** and **Consumer Key** (the Consumer Key is a secret — keep it private).
+- **`SNAPTRADE_USER_ID`** — a unique id *you choose* for your SnapTrade user (any string; it does not have to be your email). Pick one you haven't registered before — the command below creates it.
+
+**Get `SNAPTRADE_USER_SECRET` with one command:**
+
+SnapTrade returns the user secret only once — when the user is first registered — and never shows it in the dashboard. This command registers your chosen `SNAPTRADE_USER_ID` and prints the secret. It needs only Python 3 (preinstalled on macOS and most Linux) — no Docker, no SDK, nothing to install. Replace the three bracketed placeholders (keep the double quotes) and run it in your terminal:
+
+```bash
+python3 -c '
+import json,hmac,hashlib,base64,time,urllib.request,urllib.error
+clientId="[REPLACE_WITH_YOUR_SNAPTRADE_CLIENT_ID]"
+consumerKey="[REPLACE_WITH_YOUR_SNAPTRADE_CONSUMER_KEY]"
+userId="[REPLACE_WITH_YOUR_SNAPTRADE_USER_ID]"
+query="clientId="+clientId+"&timestamp="+str(int(time.time()))
+body={"userId":userId}
+sigContent=json.dumps({"content":body,"path":"/api/v1/snapTrade/registerUser","query":query},separators=(",",":"),sort_keys=True)
+sig=base64.b64encode(hmac.new(consumerKey.encode(),sigContent.encode(),hashlib.sha256).digest()).decode()
+req=urllib.request.Request("https://api.snaptrade.com/api/v1/snapTrade/registerUser?"+query,data=json.dumps(body).encode(),headers={"Content-Type":"application/json","Signature":sig},method="POST")
+try: print("SNAPTRADE_USER_SECRET="+json.load(urllib.request.urlopen(req))["userSecret"])
+except urllib.error.HTTPError as e: print("Error",e.code,e.read().decode())
+'
+```
+
+Paste the printed `SNAPTRADE_USER_SECRET=…` (a UUID) into `.env-finance` and store it safely — it can't be retrieved later. Two error responses to know:
+
+- `Error 400 … "code":"1010"` — that `SNAPTRADE_USER_ID` is already registered (the secret is only shown at creation). Pick a different id and re-run.
+- `Error 400 … "code":"1012"` — your key is a SnapTrade **personal** key, which auto-provisions its user and disables `registerUser`. This signed flow needs a SnapTrade developer/commercial key.
+
+**Link your brokerage (e.g. Fidelity):** SnapTrade needs your brokerage account connected before any holdings appear, through SnapTrade's Connection Portal. Once it's linked, your first `curl http://localhost:38080/sync` pulls the data.
+
+## Environment file setup (.env-finance)
 
 Copy the example environment file:
 
@@ -327,6 +367,10 @@ To re-render after changing `SYNC_PUBLIC_URL` or the template, pull the latest i
 ```bash
 docker compose -f docker-compose-finance.yml --env-file .env-finance up -d
 ```
+
+### Editing the template (contributors)
+
+The template must stay **classic** Grafana dashboard JSON (with `panels` and `templating` keys), **not** the V2 format (with an `elements` key) — classic provisioning silently fails to load a V2 dashboard. If you re-export from the Grafana UI, export as Classic JSON and restore the `__SYNC_PUBLIC_URL__` placeholder before committing.
 
 ### Optional: render locally to preview
 
