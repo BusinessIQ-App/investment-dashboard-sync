@@ -4,6 +4,16 @@ Self-hosted portfolio dashboard: a Node.js service syncs holdings from **SnapTra
 
 I created this primarily out of frustration that fidelity doesn't provide a line graph of all individual holdings plotted against eachother (to identify outliers).
 
+*Screenshots below use sample/demo data, not real holdings.*
+
+![Dashboard overview](screenshots/FauxData_1.jpeg)
+
+![Portfolio and account value over time](screenshots/FauxData_2.jpeg)
+
+![Position and price history](screenshots/FauxData_3.jpeg)
+
+![Holdings detail](screenshots/FauxData_4.jpeg)
+
 > This project is not affiliated with, endorsed by, or sponsored by Fidelity Investments, SnapTrade, Finnhub, Grafana, PostgreSQL, Yahoo, or any other third-party service referenced in this repository. All trademarks are the property of their respective owners.
 
 ## Quick start (no clone required)
