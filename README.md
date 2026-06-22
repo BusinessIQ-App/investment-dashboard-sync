@@ -262,32 +262,31 @@ You need five values for `.env-finance`. Four are copy/paste from the two provid
 
 - **`FINNHUB_API_KEY`** — register at <https://finnhub.io/register> (the free tier is fine), confirm your email, and copy the key from your [Finnhub dashboard](https://finnhub.io/dashboard).
 - **`SNAPTRADE_CLIENT_ID`** and **`SNAPTRADE_CONSUMER_KEY`** — sign up at <https://dashboard.snaptrade.com>, verify your email, then on the API Keys page copy the **Client ID** and **Consumer Key** (the Consumer Key is a secret — keep it private).
-- **`SNAPTRADE_USER_ID`** — a unique id *you choose* for your SnapTrade user (any string; it does not have to be your email). Pick one you haven't registered before — the command below creates it.
+- **`SNAPTRADE_USER_ID`** — for a personal SnapTrade key this is the **email you signed up with**. SnapTrade auto-creates one user for your account at signup, so you don't invent or register a new id.
 
 **Get `SNAPTRADE_USER_SECRET` with one command:**
 
-SnapTrade returns the user secret only once — when the user is first registered — and never shows it in the dashboard. This command registers your chosen `SNAPTRADE_USER_ID` and prints the secret. It needs only Python 3 (preinstalled on macOS and most Linux) — no Docker, no SDK, nothing to install. Replace the three bracketed placeholders (keep the double quotes) and run it in your terminal:
+SnapTrade never shows the user secret in the dashboard, and you can't fetch it with `registerUser` (your user already exists). Instead, mint one with the **reset/rotate** endpoint, which returns a fresh secret given just your `userId`. This needs only Python 3 (preinstalled on macOS and most Linux) — no Docker, no SDK, nothing to install. Replace the three bracketed placeholders (keep the double quotes) and run it in your terminal:
 
 ```bash
 python3 -c '
 import json,hmac,hashlib,base64,time,urllib.request,urllib.error
 clientId="[REPLACE_WITH_YOUR_SNAPTRADE_CLIENT_ID]"
 consumerKey="[REPLACE_WITH_YOUR_SNAPTRADE_CONSUMER_KEY]"
-userId="[REPLACE_WITH_YOUR_SNAPTRADE_USER_ID]"
+userId="[REPLACE_WITH_YOUR_SNAPTRADE_EMAIL]"
 query="clientId="+clientId+"&timestamp="+str(int(time.time()))
 body={"userId":userId}
-sigContent=json.dumps({"content":body,"path":"/api/v1/snapTrade/registerUser","query":query},separators=(",",":"),sort_keys=True)
+sigContent=json.dumps({"content":body,"path":"/api/v1/snapTrade/resetUserSecret","query":query},separators=(",",":"),sort_keys=True)
 sig=base64.b64encode(hmac.new(consumerKey.encode(),sigContent.encode(),hashlib.sha256).digest()).decode()
-req=urllib.request.Request("https://api.snaptrade.com/api/v1/snapTrade/registerUser?"+query,data=json.dumps(body).encode(),headers={"Content-Type":"application/json","Signature":sig},method="POST")
+req=urllib.request.Request("https://api.snaptrade.com/api/v1/snapTrade/resetUserSecret?"+query,data=json.dumps(body).encode(),headers={"Content-Type":"application/json","Signature":sig},method="POST")
 try: print("SNAPTRADE_USER_SECRET="+json.load(urllib.request.urlopen(req))["userSecret"])
 except urllib.error.HTTPError as e: print("Error",e.code,e.read().decode())
 '
 ```
 
-Paste the printed `SNAPTRADE_USER_SECRET=…` (a UUID) into `.env-finance` and store it safely — it can't be retrieved later. Two error responses to know:
+Paste the printed `SNAPTRADE_USER_SECRET=…` (a UUID) into `.env-finance`.
 
-- `Error 400 … "code":"1010"` — that `SNAPTRADE_USER_ID` is already registered (the secret is only shown at creation). Pick a different id and re-run.
-- `Error 400 … "code":"1012"` — your key is a SnapTrade **personal** key, which auto-provisions its user and disables `registerUser`. This signed flow needs a SnapTrade developer/commercial key.
+> ⚠️ This **rotates** the secret — run it once and save the result. Each call invalidates the previous secret, so if you run it again you must update `.env-finance` with the new value and restart the stack.
 
 **Link your brokerage (e.g. Fidelity):** SnapTrade needs your brokerage account connected before any holdings appear, through SnapTrade's Connection Portal. Once it's linked, your first `curl http://localhost:38080/sync` pulls the data.
 
