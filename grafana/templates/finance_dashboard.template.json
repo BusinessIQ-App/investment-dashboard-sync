@@ -39,546 +39,6 @@
         "type": "grafana-postgresql-datasource",
         "uid": "dfpli1tj8oqgwe"
       },
-      "description": "Filters by Account variable: All, J-RTH, or S-RTH.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "dark-red",
-                "value": 0
-              },
-              {
-                "color": "light-orange",
-                "value": 150000
-              },
-              {
-                "color": "semi-dark-orange",
-                "value": 180000
-              },
-              {
-                "color": "super-light-purple",
-                "value": 215000
-              },
-              {
-                "color": "purple",
-                "value": 250000
-              },
-              {
-                "color": "dark-purple",
-                "value": 285000
-              },
-              {
-                "color": "super-light-blue",
-                "value": 310000
-              },
-              {
-                "color": "blue",
-                "value": 350000
-              },
-              {
-                "color": "dark-blue",
-                "value": 500000
-              },
-              {
-                "color": "super-light-green",
-                "value": 650000
-              },
-              {
-                "color": "green",
-                "value": 700000
-              },
-              {
-                "color": "dark-green",
-                "value": 900000
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        }
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 0,
-        "y": 0
-      },
-      "id": 1,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "13.0.2",
-      "targets": [
-        {
-          "dataset": "portfolio",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "dfpli1tj8oqgwe"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n)\nSELECT\n  ROUND(COALESCE(SUM(ps.total_value), 0)::numeric, 2) AS portfolio_value\nFROM portfolio_snapshots ps\nCROSS JOIN selected_account s\nWHERE (s.account_name IS NULL OR ps.account_name = s.account_name)\n  AND ps.snapshot_time = (\n    SELECT MAX(ps2.snapshot_time)\n    FROM portfolio_snapshots ps2\n    CROSS JOIN selected_account s2\n    WHERE (s2.account_name IS NULL OR ps2.account_name = s2.account_name)\n  );",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Total Portfolio Value",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "dfpli1tj8oqgwe"
-      },
-      "description": "Change since first snapshot today. Filters by Account variable.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        }
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 8,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "13.0.2",
-      "targets": [
-        {
-          "dataset": "portfolio",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "dfpli1tj8oqgwe"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n)\n, latest AS (\n  SELECT COALESCE(SUM(ps.total_value), 0) AS value\n  FROM portfolio_snapshots ps\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR ps.account_name = s.account_name)\n    AND ps.snapshot_time = (\n      SELECT MAX(ps2.snapshot_time)\n      FROM portfolio_snapshots ps2\n      CROSS JOIN selected_account s2\n      WHERE (s2.account_name IS NULL OR ps2.account_name = s2.account_name)\n    )\n),\nbaseline AS (\n  SELECT COALESCE(SUM(ps.total_value), 0) AS value\n  FROM portfolio_snapshots ps\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR ps.account_name = s.account_name)\n    AND ps.snapshot_time = (\n      SELECT MIN(ps2.snapshot_time)\n      FROM portfolio_snapshots ps2\n      CROSS JOIN selected_account s2\n      WHERE (s2.account_name IS NULL OR ps2.account_name = s2.account_name)\n        AND ps2.snapshot_time >= date_trunc('day', NOW())\n    )\n)\nSELECT\n  ROUND((latest.value - baseline.value)::numeric, 2) AS today_change\nFROM latest, baseline;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Today's Change",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "dfpli1tj8oqgwe"
-      },
-      "description": "Always shows all accounts. Selected account is marked with a star.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "unit": "currencyUSD"
-        }
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 16,
-        "y": 0
-      },
-      "id": 3,
-      "options": {
-        "displayLabels": [
-          "name",
-          "value"
-        ],
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "pieType": "pie",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": true
-        },
-        "sort": "desc",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "13.0.2",
-      "targets": [
-        {
-          "dataset": "portfolio",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "dfpli1tj8oqgwe"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n)\nSELECT\n  CASE\n    WHEN s.account_name IS NOT NULL AND ps.account_name = s.account_name\n      THEN '★ ' || ps.account_name\n    ELSE ps.account_name\n  END AS account_name,\n  ROUND(SUM(ps.total_value)::numeric, 2) AS value\nFROM portfolio_snapshots ps\nCROSS JOIN selected_account s\nWHERE ps.snapshot_time = (\n  SELECT MAX(snapshot_time)\n  FROM portfolio_snapshots\n)\nGROUP BY 1\nORDER BY value DESC;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Account Allocation",
-      "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "dfpli1tj8oqgwe"
-      },
-      "description": "When Account=All, this sums all accounts into one total portfolio line. When filtered, it shows only the selected account.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 6
-      },
-      "id": 4,
-      "options": {
-        "annotations": {
-          "clustering": -1,
-          "multiLane": false
-        },
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "13.0.2",
-      "targets": [
-        {
-          "dataset": "portfolio",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "dfpli1tj8oqgwe"
-          },
-          "editorMode": "code",
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n)\nSELECT\n  ps.snapshot_time AS \"time\",\n  CASE\n    WHEN s.account_name IS NULL THEN 'Total Portfolio'\n    ELSE ps.account_name\n  END AS metric,\n  ROUND(SUM(ps.total_value)::numeric, 2) AS value\nFROM portfolio_snapshots ps\nCROSS JOIN selected_account s\nWHERE (s.account_name IS NULL OR ps.account_name = s.account_name)\nGROUP BY\n  ps.snapshot_time,\n  CASE\n    WHEN s.account_name IS NULL THEN 'Total Portfolio'\n    ELSE ps.account_name\n  END\nORDER BY ps.snapshot_time;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Portfolio Value Over Time",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "dfpli1tj8oqgwe"
-      },
-      "description": "Account value history; filters when Account is J-RTH or S-RTH.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      },
-      "id": 5,
-      "options": {
-        "annotations": {
-          "clustering": -1,
-          "multiLane": false
-        },
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "13.0.2",
-      "targets": [
-        {
-          "dataset": "portfolio",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "dfpli1tj8oqgwe"
-          },
-          "editorMode": "code",
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n)\nSELECT\n  ps.snapshot_time AS \"time\",\n  ps.account_name AS metric,\n  ROUND(ps.total_value::numeric, 2) AS value\nFROM portfolio_snapshots ps\nCROSS JOIN selected_account s\nWHERE (s.account_name IS NULL OR ps.account_name = s.account_name)\nORDER BY ps.snapshot_time;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Account Value Over Time",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "dfpli1tj8oqgwe"
-      },
       "description": "Historical shares × historical price. Price Session=Include Extended uses all price rows; Regular Only uses session='regular'.",
       "fieldConfig": {
         "defaults": {
@@ -639,7 +99,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 0
       },
       "id": 6,
       "options": {
@@ -758,7 +218,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 0
       },
       "id": 7,
       "options": {
@@ -811,6 +271,246 @@
         }
       ],
       "title": "Price History",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfpli1tj8oqgwe"
+      },
+      "description": "When Account=All, this sums all accounts into one total portfolio line. When filtered, it shows only the selected account.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "dataset": "portfolio",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfpli1tj8oqgwe"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nprice_per_min AS (\n  SELECT DISTINCT ON (ticker, date_trunc('minute', timestamp))\n    ticker,\n    date_trunc('minute', timestamp) AS t,\n    price\n  FROM filtered_prices\n  ORDER BY ticker, date_trunc('minute', timestamp), timestamp DESC\n),\nhh AS (\n  SELECT\n    date_trunc('minute', h.snapshot_time) AS t,\n    h.account_name,\n    h.ticker,\n    h.shares,\n    h.market_value\n  FROM holdings_history h\n)\nSELECT\n  hh.t AS \"time\",\n  CASE\n    WHEN s.account_name IS NULL THEN 'Total Portfolio'\n    ELSE hh.account_name\n  END AS metric,\n  ROUND(SUM(COALESCE(hh.shares * pm.price, hh.market_value))::numeric, 2) AS value\nFROM hh\nCROSS JOIN selected_account s\nLEFT JOIN price_per_min pm ON pm.ticker = hh.ticker AND pm.t = hh.t\nWHERE (s.account_name IS NULL OR hh.account_name = s.account_name)\nGROUP BY\n  hh.t,\n  CASE\n    WHEN s.account_name IS NULL THEN 'Total Portfolio'\n    ELSE hh.account_name\n  END\nORDER BY hh.t;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Portfolio Value Over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfpli1tj8oqgwe"
+      },
+      "description": "Account value history; filters when Account is J-RTH or S-RTH.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "dataset": "portfolio",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfpli1tj8oqgwe"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nprice_per_min AS (\n  SELECT DISTINCT ON (ticker, date_trunc('minute', timestamp))\n    ticker,\n    date_trunc('minute', timestamp) AS t,\n    price\n  FROM filtered_prices\n  ORDER BY ticker, date_trunc('minute', timestamp), timestamp DESC\n),\nhh AS (\n  SELECT\n    date_trunc('minute', h.snapshot_time) AS t,\n    h.account_name,\n    h.ticker,\n    h.shares,\n    h.market_value\n  FROM holdings_history h\n)\nSELECT\n  hh.t AS \"time\",\n  hh.account_name AS metric,\n  ROUND(SUM(COALESCE(hh.shares * pm.price, hh.market_value))::numeric, 2) AS value\nFROM hh\nCROSS JOIN selected_account s\nLEFT JOIN price_per_min pm ON pm.ticker = hh.ticker AND pm.t = hh.t\nWHERE (s.account_name IS NULL OR hh.account_name = s.account_name)\nGROUP BY hh.t, hh.account_name\nORDER BY hh.t;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Account Value Over Time",
       "type": "timeseries"
     },
     {
@@ -903,7 +603,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 16
       },
       "id": 8,
       "options": {
@@ -939,7 +639,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n)\nSELECT\n  h.ticker,\n  ROUND(SUM(h.market_value)::numeric, 2) AS value\nFROM holdings h\nCROSS JOIN selected_account s\nWHERE h.market_value > 0\n  AND (s.account_name IS NULL OR h.account_name = s.account_name)\nGROUP BY h.ticker\nORDER BY value DESC\nLIMIT 15;",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n)\nSELECT\n  h.ticker,\n  ROUND(SUM(COALESCE(h.shares * lp.latest_price, h.market_value))::numeric, 2) AS value\nFROM holdings h\nCROSS JOIN selected_account s\nLEFT JOIN latest_prices lp ON lp.ticker = h.ticker\nWHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  AND COALESCE(h.shares * lp.latest_price, h.market_value) > 0\nGROUP BY h.ticker\nORDER BY value DESC\nLIMIT 15;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1240,7 +940,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 16
       },
       "id": 9,
       "options": {
@@ -1267,7 +967,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price,\n    timestamp AS latest_price_time,\n    session AS latest_session,\n    source AS latest_source\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nlast_regular_session_by_ticker AS (\n  SELECT\n    ticker,\n    MAX(timestamp::date) AS session_date\n  FROM prices\n  WHERE session = 'regular'\n  GROUP BY ticker\n),\nregular_open_prices AS (\n  SELECT DISTINCT ON (p.ticker)\n    p.ticker,\n    p.price AS regular_open_price,\n    p.timestamp AS regular_open_time\n  FROM prices p\n  JOIN last_regular_session_by_ticker lrs\n    ON lrs.ticker = p.ticker\n   AND lrs.session_date = p.timestamp::date\n  WHERE p.session = 'regular'\n  ORDER BY p.ticker, p.timestamp ASC\n),\nholdings_with_prices AS (\n  SELECT\n    h.ticker,\n    h.market_value,\n    h.shares,\n    h.cost_basis AS avg_cost_basis,\n    h.shares * h.cost_basis AS total_cost_basis,\n    lp.latest_price,\n    lp.latest_price_time,\n    lp.latest_session,\n    lp.latest_source,\n    rop.regular_open_price,\n    rop.regular_open_time,\n    h.account_name,\n    COALESCE(h.shares * lp.latest_price, h.market_value) AS current_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  LEFT JOIN latest_prices lp ON lp.ticker = h.ticker\n  LEFT JOIN regular_open_prices rop ON rop.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n)\nSELECT\n  ticker,\n  ROUND(market_value::numeric, 2) AS market_value,\n  shares,\n  ROUND(avg_cost_basis::numeric, 2) AS avg_cost_basis,\n  ROUND(total_cost_basis::numeric, 2) AS total_cost_basis,\n  latest_price,\n  regular_open_price,\n  ROUND((shares * (latest_price - regular_open_price))::numeric, 2) AS day_change,\n  ROUND(\n    CASE\n      WHEN regular_open_price IS NULL OR regular_open_price = 0 THEN NULL\n      ELSE ((latest_price - regular_open_price) / regular_open_price * 100)::numeric\n    END,\n    2\n  ) AS day_change_pct,\n  ROUND((current_value - total_cost_basis)::numeric, 2) AS total_change,\n  ROUND(\n    CASE\n      WHEN total_cost_basis IS NULL OR total_cost_basis = 0 THEN NULL\n      ELSE ((current_value - total_cost_basis) / total_cost_basis * 100)::numeric\n    END,\n    2\n  ) AS total_change_pct,\n  latest_session,\n  latest_source,\n  latest_price_time,\n  regular_open_time,\n  account_name\nFROM holdings_with_prices\nORDER BY account_name, market_value DESC;",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price,\n    timestamp AS latest_price_time,\n    session AS latest_session,\n    source AS latest_source\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nlast_regular_session_by_ticker AS (\n  SELECT\n    ticker,\n    MAX(timestamp::date) AS session_date\n  FROM prices\n  WHERE session = 'regular'\n  GROUP BY ticker\n),\nregular_open_prices AS (\n  SELECT DISTINCT ON (p.ticker)\n    p.ticker,\n    p.price AS regular_open_price,\n    p.timestamp AS regular_open_time\n  FROM prices p\n  JOIN last_regular_session_by_ticker lrs\n    ON lrs.ticker = p.ticker\n   AND lrs.session_date = p.timestamp::date\n  WHERE p.session = 'regular'\n  ORDER BY p.ticker, p.timestamp ASC\n),\nholdings_with_prices AS (\n  SELECT\n    h.ticker,\n    h.market_value,\n    h.shares,\n    h.cost_basis AS avg_cost_basis,\n    h.shares * h.cost_basis AS total_cost_basis,\n    lp.latest_price,\n    lp.latest_price_time,\n    lp.latest_session,\n    lp.latest_source,\n    rop.regular_open_price,\n    rop.regular_open_time,\n    h.account_name,\n    COALESCE(h.shares * lp.latest_price, h.market_value) AS current_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  LEFT JOIN latest_prices lp ON lp.ticker = h.ticker\n  LEFT JOIN regular_open_prices rop ON rop.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n)\nSELECT\n  ticker,\n  ROUND(current_value::numeric, 2) AS market_value,\n  shares,\n  ROUND(avg_cost_basis::numeric, 2) AS avg_cost_basis,\n  ROUND(total_cost_basis::numeric, 2) AS total_cost_basis,\n  latest_price,\n  regular_open_price,\n  ROUND((shares * (latest_price - regular_open_price))::numeric, 2) AS day_change,\n  ROUND(\n    CASE\n      WHEN regular_open_price IS NULL OR regular_open_price = 0 THEN NULL\n      ELSE ((latest_price - regular_open_price) / regular_open_price * 100)::numeric\n    END,\n    2\n  ) AS day_change_pct,\n  ROUND((current_value - total_cost_basis)::numeric, 2) AS total_change,\n  ROUND(\n    CASE\n      WHEN total_cost_basis IS NULL OR total_cost_basis = 0 THEN NULL\n      ELSE ((current_value - total_cost_basis) / total_cost_basis * 100)::numeric\n    END,\n    2\n  ) AS total_change_pct,\n  latest_session,\n  latest_source,\n  latest_price_time,\n  regular_open_time,\n  account_name\nFROM holdings_with_prices\nORDER BY account_name, market_value DESC;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1290,6 +990,306 @@
       ],
       "title": "Current Holdings",
       "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfpli1tj8oqgwe"
+      },
+      "description": "Filters by Account variable: All, J-RTH, or S-RTH.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": 0
+              },
+              {
+                "color": "light-orange",
+                "value": 150000
+              },
+              {
+                "color": "semi-dark-orange",
+                "value": 180000
+              },
+              {
+                "color": "super-light-purple",
+                "value": 215000
+              },
+              {
+                "color": "purple",
+                "value": 250000
+              },
+              {
+                "color": "dark-purple",
+                "value": 285000
+              },
+              {
+                "color": "super-light-blue",
+                "value": 310000
+              },
+              {
+                "color": "blue",
+                "value": 350000
+              },
+              {
+                "color": "dark-blue",
+                "value": 500000
+              },
+              {
+                "color": "super-light-green",
+                "value": 650000
+              },
+              {
+                "color": "green",
+                "value": 700000
+              },
+              {
+                "color": "dark-green",
+                "value": 900000
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 26
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "dataset": "portfolio",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfpli1tj8oqgwe"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n)\nSELECT\n  ROUND(COALESCE(SUM(COALESCE(h.shares * lp.latest_price, h.market_value)), 0)::numeric, 2) AS portfolio_value\nFROM holdings h\nCROSS JOIN selected_account s\nLEFT JOIN latest_prices lp ON lp.ticker = h.ticker\nWHERE (s.account_name IS NULL OR h.account_name = s.account_name);",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Total Portfolio Value",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfpli1tj8oqgwe"
+      },
+      "description": "Change since today's regular open, computed from live prices. Filters by Account variable.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 26
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "dataset": "portfolio",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfpli1tj8oqgwe"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nlast_regular_session_by_ticker AS (\n  SELECT\n    ticker,\n    MAX(timestamp::date) AS session_date\n  FROM prices\n  WHERE session = 'regular'\n  GROUP BY ticker\n),\nregular_open_prices AS (\n  SELECT DISTINCT ON (p.ticker)\n    p.ticker,\n    p.price AS regular_open_price\n  FROM prices p\n  JOIN last_regular_session_by_ticker lrs\n    ON lrs.ticker = p.ticker\n   AND lrs.session_date = p.timestamp::date\n  WHERE p.session = 'regular'\n  ORDER BY p.ticker, p.timestamp ASC\n)\nSELECT\n  ROUND(COALESCE(SUM(h.shares * (lp.latest_price - rop.regular_open_price)), 0)::numeric, 2) AS today_change\nFROM holdings h\nCROSS JOIN selected_account s\nJOIN latest_prices lp ON lp.ticker = h.ticker\nJOIN regular_open_prices rop ON rop.ticker = h.ticker\nWHERE (s.account_name IS NULL OR h.account_name = s.account_name);",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Today's Change",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfpli1tj8oqgwe"
+      },
+      "description": "Always shows all accounts. Selected account is marked with a star.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 26
+      },
+      "id": 3,
+      "options": {
+        "displayLabels": [
+          "name",
+          "value"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "sort": "desc",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "dataset": "portfolio",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfpli1tj8oqgwe"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n)\nSELECT\n  CASE\n    WHEN s.account_name IS NOT NULL AND h.account_name = s.account_name\n      THEN '★ ' || h.account_name\n    ELSE h.account_name\n  END AS account_name,\n  ROUND(SUM(COALESCE(h.shares * lp.latest_price, h.market_value))::numeric, 2) AS value\nFROM holdings h\nCROSS JOIN selected_account s\nLEFT JOIN latest_prices lp ON lp.ticker = h.ticker\nGROUP BY 1\nORDER BY value DESC;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Account Allocation",
+      "type": "piechart"
     },
     {
       "datasource": {
@@ -1376,7 +1376,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 12,
+        "w": 9,
         "x": 0,
         "y": 32
       },
@@ -1505,14 +1505,14 @@
       },
       {
         "current": {
-          "text": "",
-          "value": ""
+          "text": "AMZN",
+          "value": "AMZN"
         },
         "description": "Type any ticker to generate a Yahoo Finance quote link. Example: AMZN.",
         "hide": 0,
         "label": "External Ticker",
         "name": "external_ticker",
-        "query": "",
+        "query": "AMZN",
         "skipUrlSync": false,
         "type": "textbox"
       }
@@ -1538,7 +1538,7 @@
   },
   "timezone": "browser",
   "title": "finance_dashboard",
-  "version": 1,
+  "version": 2,
   "uid": "ad8jkxh",
   "id": 1152092664320000
 }
