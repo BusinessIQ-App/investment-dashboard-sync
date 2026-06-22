@@ -2,6 +2,8 @@
 
 Self-hosted portfolio dashboard: a Node.js service syncs holdings from **SnapTrade** and prices from **Finnhub** into **PostgreSQL**, visualized with **Grafana**. Runs locally, on a NAS, or on a private server via Docker Compose.
 
+I created this primarily out of frustration that fidelity doesn't provide a line graph of all individual holdings plotted against eachother (to identify outliers).
+
 > This project is not affiliated with, endorsed by, or sponsored by Fidelity Investments, SnapTrade, Finnhub, Grafana, PostgreSQL, Yahoo, or any other third-party service referenced in this repository. All trademarks are the property of their respective owners.
 
 ## Quick start (no clone required)
