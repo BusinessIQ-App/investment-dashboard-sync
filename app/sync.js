@@ -215,39 +215,49 @@ async function fetchFinnhubCandlePrice(ticker) {
   return null;
 }
 
-async function fetchTiingoPrice(ticker) {
-  if (!process.env.TIINGO_API_KEY) {
-    return null;
+// Fetch many tickers from Tiingo's IEX endpoint in ONE batched request (the endpoint
+// accepts a comma-separated `tickers` list). Returns a Map of UPPERCASE ticker -> price.
+// Batching keeps us well under Tiingo's free-tier request cap (was ~1 request per ticker,
+// which triggered 429s). Chunked defensively in case of a very large holdings list.
+async function fetchTiingoPrices(tickers) {
+  const prices = new Map();
+
+  if (!process.env.TIINGO_API_KEY || tickers.length === 0) {
+    return prices;
   }
 
-  try {
-    const response = await axios.get(
-      `https://api.tiingo.com/iex/${encodeURIComponent(ticker)}`,
-      {
+  const chunkSize = 100;
+
+  for (let i = 0; i < tickers.length; i += chunkSize) {
+    const chunk = tickers.slice(i, i + chunkSize);
+
+    try {
+      const response = await axios.get('https://api.tiingo.com/iex/', {
+        params: { tickers: chunk.join(',') },
         headers: {
           Authorization: `Token ${process.env.TIINGO_API_KEY}`
         }
+      });
+
+      const rows = Array.isArray(response.data) ? response.data : [];
+
+      for (const row of rows) {
+        const symbol = String(row.ticker || '').toUpperCase();
+        const price = Number(row.tngoLast ?? row.last ?? 0);
+
+        if (symbol && price) {
+          prices.set(symbol, price);
+        }
       }
-    );
-
-    const row = Array.isArray(response.data) ? response.data[0] : null;
-    const price = Number(row?.tngoLast ?? row?.last ?? 0);
-
-    if (!price) {
-      return null;
+    } catch (err) {
+      console.log(
+        `Tiingo batch lookup failed (${chunk.length} tickers):`,
+        err.response?.status || err.status || err.message
+      );
     }
-
-    return {
-      price,
-      source: 'tiingo_iex'
-    };
-  } catch (err) {
-    console.log(
-      `Tiingo lookup failed for ${ticker}:`,
-      err.response?.status || err.status || err.message
-    );
-    return null;
   }
+
+  return prices;
 }
 
 // Finnhub extended-hours behavior: prefer the 1-minute candle, fall back to the quote.
@@ -312,24 +322,20 @@ async function fetchFinnhubRegularPrice(ticker) {
 //   - premarket/afterhours: Tiingo if available (real pre/post prices), otherwise Finnhub
 // So with both keys, Tiingo handles extended hours and Finnhub the regular session; with
 // only one key, that provider handles every session.
-async function fetchBestPrice(ticker, session) {
+async function fetchBestPrice(ticker, session, tiingoPrices) {
   const hasFinnhub = !!process.env.FINNHUB_API_KEY;
   const hasTiingo = !!process.env.TIINGO_API_KEY;
+  const tiingoPrice = tiingoPrices.get(ticker.toUpperCase());
 
   if (session === 'premarket' || session === 'afterhours') {
-    if (hasTiingo) {
-      const tiingoPrice = await fetchTiingoPrice(ticker);
-
-      if (tiingoPrice) {
-        return tiingoPrice;
-      }
-
-      if (hasFinnhub) {
-        console.log(`No Tiingo price for ${ticker}; falling back to Finnhub.`);
-      }
+    if (hasTiingo && tiingoPrice) {
+      return { price: tiingoPrice, source: 'tiingo_iex' };
     }
 
     if (hasFinnhub) {
+      if (hasTiingo) {
+        console.log(`No Tiingo price for ${ticker}; falling back to Finnhub.`);
+      }
       return fetchFinnhubExtendedPrice(ticker);
     }
 
@@ -341,8 +347,8 @@ async function fetchBestPrice(ticker, session) {
     return fetchFinnhubRegularPrice(ticker);
   }
 
-  if (hasTiingo) {
-    return fetchTiingoPrice(ticker);
+  if (hasTiingo && tiingoPrice) {
+    return { price: tiingoPrice, source: 'tiingo_iex' };
   }
 
   return null;
@@ -461,8 +467,16 @@ async function main() {
     console.log(`Snapshot: ${account.name || account.id} = ${accountTotalValue}`);
   }
 
+  // Prefetch Tiingo prices for all tickers in one batched request (used for extended
+  // hours, or for every session when Finnhub isn't configured).
+  const isExtendedSession = session === 'premarket' || session === 'afterhours';
+  const tiingoPrices =
+    process.env.TIINGO_API_KEY && (isExtendedSession || !process.env.FINNHUB_API_KEY)
+      ? await fetchTiingoPrices([...tickers])
+      : new Map();
+
   for (const ticker of tickers) {
-    const result = await fetchBestPrice(ticker, session);
+    const result = await fetchBestPrice(ticker, session, tiingoPrices);
 
     if (!result) {
       console.log(`No price for ${ticker}`);
