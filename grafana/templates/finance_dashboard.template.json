@@ -1012,6 +1012,278 @@
         "type": "grafana-postgresql-datasource",
         "uid": "dfpli1tj8oqgwe"
       },
+      "description": "Largest current positions; filters by Account variable. Click a bar/value to open the ticker in Yahoo Finance.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "value"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Open ${__data.fields[0]} in Yahoo Finance",
+                    "url": "https://finance.yahoo.com/quote/${__data.fields[0]}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ticker"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Open ${__data.fields[0]} in Yahoo Finance",
+                    "url": "https://finance.yahoo.com/quote/${__data.fields[0]}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 8,
+      "options": {
+        "barRadius": 0.3,
+        "barWidth": 0.46,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 60,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "dataset": "portfolio",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfpli1tj8oqgwe"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n)\nSELECT\n  h.ticker,\n  ROUND(SUM(COALESCE(h.shares * lp.latest_price, h.market_value))::numeric, 2) AS value\nFROM holdings h\nCROSS JOIN selected_account s\nLEFT JOIN latest_prices lp ON lp.ticker = h.ticker\nWHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  AND COALESCE(h.shares * lp.latest_price, h.market_value) > 0\nGROUP BY h.ticker\nORDER BY value DESC\nLIMIT 15;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Largest Positions",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfpli1tj8oqgwe"
+      },
+      "description": "Account value history; filters when Account is J-RTH or S-RTH.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 5,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.0.2",
+      "targets": [
+        {
+          "dataset": "portfolio",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfpli1tj8oqgwe"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nprice_per_min AS (\n  SELECT DISTINCT ON (ticker, date_trunc('minute', timestamp))\n    ticker,\n    date_trunc('minute', timestamp) AS t,\n    price\n  FROM filtered_prices\n  ORDER BY ticker, date_trunc('minute', timestamp), timestamp DESC\n),\nhh AS (\n  SELECT\n    date_trunc('minute', h.snapshot_time) AS t,\n    h.account_name,\n    h.ticker,\n    h.shares,\n    h.market_value\n  FROM holdings_history h\n)\nSELECT\n  hh.t AS \"time\",\n  hh.account_name AS metric,\n  ROUND(SUM(COALESCE(hh.shares * pm.price, hh.market_value))::numeric, 2) AS value\nFROM hh\nCROSS JOIN selected_account s\nLEFT JOIN price_per_min pm ON pm.ticker = hh.ticker AND pm.t = hh.t\nWHERE (s.account_name IS NULL OR hh.account_name = s.account_name)\nGROUP BY hh.t, hh.account_name\nORDER BY hh.t;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Account Value Over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfpli1tj8oqgwe"
+      },
       "description": "When Account=All, this sums all accounts into one total portfolio line. When filtered, it shows only the selected account.",
       "fieldConfig": {
         "defaults": {
@@ -1069,10 +1341,10 @@
         }
       },
       "gridPos": {
-        "h": 8,
+        "h": 5,
         "w": 12,
-        "x": 0,
-        "y": 32
+        "x": 12,
+        "y": 37
       },
       "id": 4,
       "options": {
@@ -1081,7 +1353,9 @@
           "multiLane": false
         },
         "legend": {
-          "calcs": [],
+          "calcs": [
+            "lastNotNull"
+          ],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
@@ -1179,6 +1453,10 @@
                     "url": "https://finance.yahoo.com/quote/${__value.raw}"
                   }
                 ]
+              },
+              {
+                "id": "custom.width",
+                "value": 83
               }
             ]
           },
@@ -1401,10 +1679,10 @@
         ]
       },
       "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 12,
-        "y": 32
+        "h": 37,
+        "w": 24,
+        "x": 0,
+        "y": 42
       },
       "id": 9,
       "options": {
@@ -1454,276 +1732,6 @@
       ],
       "title": "Current Holdings",
       "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "dfpli1tj8oqgwe"
-      },
-      "description": "Largest current positions; filters by Account variable. Click a bar/value to open the ticker in Yahoo Finance.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "value"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "targetBlank": true,
-                    "title": "Open ${__data.fields[0]} in Yahoo Finance",
-                    "url": "https://finance.yahoo.com/quote/${__data.fields[0]}"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "ticker"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "targetBlank": true,
-                    "title": "Open ${__data.fields[0]} in Yahoo Finance",
-                    "url": "https://finance.yahoo.com/quote/${__data.fields[0]}"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 0,
-        "y": 40
-      },
-      "id": 8,
-      "options": {
-        "barRadius": 0.3,
-        "barWidth": 0.46,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "orientation": "horizontal",
-        "showValue": "auto",
-        "stacking": "none",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 60,
-        "xTickLabelSpacing": 0
-      },
-      "pluginVersion": "13.0.2",
-      "targets": [
-        {
-          "dataset": "portfolio",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "dfpli1tj8oqgwe"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n)\nSELECT\n  h.ticker,\n  ROUND(SUM(COALESCE(h.shares * lp.latest_price, h.market_value))::numeric, 2) AS value\nFROM holdings h\nCROSS JOIN selected_account s\nLEFT JOIN latest_prices lp ON lp.ticker = h.ticker\nWHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  AND COALESCE(h.shares * lp.latest_price, h.market_value) > 0\nGROUP BY h.ticker\nORDER BY value DESC\nLIMIT 15;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Largest Positions",
-      "type": "barchart"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "dfpli1tj8oqgwe"
-      },
-      "description": "Account value history; filters when Account is J-RTH or S-RTH.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 42
-      },
-      "id": 5,
-      "options": {
-        "annotations": {
-          "clustering": -1,
-          "multiLane": false
-        },
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "13.0.2",
-      "targets": [
-        {
-          "dataset": "portfolio",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "dfpli1tj8oqgwe"
-          },
-          "editorMode": "code",
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nprice_per_min AS (\n  SELECT DISTINCT ON (ticker, date_trunc('minute', timestamp))\n    ticker,\n    date_trunc('minute', timestamp) AS t,\n    price\n  FROM filtered_prices\n  ORDER BY ticker, date_trunc('minute', timestamp), timestamp DESC\n),\nhh AS (\n  SELECT\n    date_trunc('minute', h.snapshot_time) AS t,\n    h.account_name,\n    h.ticker,\n    h.shares,\n    h.market_value\n  FROM holdings_history h\n)\nSELECT\n  hh.t AS \"time\",\n  hh.account_name AS metric,\n  ROUND(SUM(COALESCE(hh.shares * pm.price, hh.market_value))::numeric, 2) AS value\nFROM hh\nCROSS JOIN selected_account s\nLEFT JOIN price_per_min pm ON pm.ticker = hh.ticker AND pm.t = hh.t\nWHERE (s.account_name IS NULL OR hh.account_name = s.account_name)\nGROUP BY hh.t, hh.account_name\nORDER BY hh.t;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Account Value Over Time",
-      "type": "timeseries"
     }
   ],
   "preload": false,
@@ -1853,7 +1861,7 @@
   },
   "timezone": "browser",
   "title": "finance_dashboard",
-  "version": 2,
+  "version": 8,
   "uid": "ad8jkxh",
-  "id": 1967377371529216
+  "id": 2190817046540288
 }
