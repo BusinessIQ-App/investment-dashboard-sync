@@ -19,7 +19,7 @@ I created this primarily out of frustration that fidelity doesn't provide a line
 
 **AT A GLANCE:**
 - Create a Snaptrade account and link your fidelity account(s) there. 
-- Create a personal Finnhub (mine is a free) account for credentials to pull current price quotes
+- Create a personal Finnhub (mine is a free) account for credentials to pull current price quotes (optionally also a free Tiingo account to add real pre-market/after-hours prices)
 - Create the two files (yml & env) per the instructions below and save your secrets into the env file
 - This project will generate a DB and Grafana dashboard (Dashboards/portfolio/finance_dashboard) accessible at localhost:3300 as soon as you pull & start via the docker compose yml below 👇
 
@@ -126,6 +126,7 @@ SNAPTRADE_CONSUMER_KEY=
 SNAPTRADE_USER_ID=
 SNAPTRADE_USER_SECRET=
 FINNHUB_API_KEY=
+TIINGO_API_KEY=
 DATABASE_URL=postgres://portfolio:portfolio@postgres:5432/portfolio
 
 GRAFANA_ADMIN_USER=admin
@@ -219,11 +220,11 @@ Data flows in one direction: **SnapTrade** (connected to your accounts and holdi
 
 The sync app is plain Node.js with no JavaScript build step (the Docker image just bundles it and a few support assets):
 
-* `app/sync.js` is a one-shot job. It connects to PostgreSQL, ensures the schema exists (idempotent), fully replaces the `holdings` table, appends to `holdings_history` and `portfolio_snapshots`, then fetches Finnhub prices for non-cash, non-mutual-fund tickers and appends them to `prices`. It runs once and exits.
+* `app/sync.js` is a one-shot job. It connects to PostgreSQL, ensures the schema exists (idempotent), fully replaces the `holdings` table, appends to `holdings_history` and `portfolio_snapshots`, then fetches prices for non-cash, non-mutual-fund tickers (from Finnhub and/or Tiingo — see below) and appends them to `prices`. It runs once and exits.
 * `app/sync-service.js` is a long-running HTTP service that wraps `sync.js`. It exposes `/health` and `/sync` endpoints, runs the cron schedules, and spawns `sync.js` as a child process. A `running` flag prevents overlapping syncs — a trigger received while a sync is in flight is skipped, not queued.
 * `app/render-dashboard.js` and `app/init-grafana.sh` are used by the one-shot `grafana-init` service to render the dashboard and populate Grafana's provisioning at startup (see [Dashboard rendering](#dashboard-rendering)).
 
-Price fetching is market-session aware (computed in U.S. Eastern time): `premarket`, `regular`, `afterhours`, or `closed`. When the market is closed (weekends, holidays, overnight) no price calls are made. During pre/after-hours the app prefers 1-minute candle data and falls back to the latest quote; during regular hours it uses the quote directly. Every `prices` row records the `session` and a `source` label identifying where the value came from.
+Price fetching is market-session aware (computed in U.S. Eastern time): `premarket`, `regular`, `afterhours`, or `closed`. When the market is closed (weekends, holidays, overnight) no price calls are made. The provider is chosen by which keys are configured: with both keys, **Finnhub** serves the regular session and **Tiingo** (IEX) serves pre-market/after-hours; with only one key set, that provider serves every session. During Finnhub extended hours the app prefers 1-minute candle data and falls back to the latest quote. Every `prices` row records the `session` and a `source` label (`finnhub_quote`, `finnhub_candle_1m`, `finnhub_quote_fallback`, or `tiingo_iex`) identifying where the value came from.
 
 ## Services
 
@@ -241,7 +242,7 @@ You need:
 
 1. Docker and Docker Compose on the target host.
 2. A SnapTrade application and user credentials.
-3. A Finnhub API key.
+3. A price-provider key — Finnhub and/or Tiingo (Tiingo adds real pre/post-market prices).
 4. A `.env-finance` file based on `.env-finance.example`.
 
 ## Docker image
@@ -272,6 +273,7 @@ Required values:
 
 ```bash
 FINNHUB_API_KEY=
+TIINGO_API_KEY=
 SNAPTRADE_CLIENT_ID=
 SNAPTRADE_CONSUMER_KEY=
 SNAPTRADE_USER_ID=
@@ -288,6 +290,10 @@ SYNC_PUBLIC_URL=http://localhost:38080/sync
 
 Notes:
 
+* **Price providers (`FINNHUB_API_KEY` / `TIINGO_API_KEY`)** — set at least one. With
+  **both**, Finnhub serves the **regular** session and Tiingo serves **pre-market /
+  after-hours** (Tiingo's free IEX feed reflects real extended-hours trades, which
+  Finnhub's free tier doesn't). With only **one** set, that provider serves every session.
 * `GRAFANA_HOST_PORT` controls the host port for Grafana.
 * `SYNC_HOST_PORT` controls the host port for the manual sync API.
 * `SYNC_PUBLIC_URL` controls the dashboard’s **Run Sync** link.
@@ -302,6 +308,7 @@ You need five values for `.env-finance`. Four are copy/paste from the two provid
 **Copy these from the browser:**
 
 - **`FINNHUB_API_KEY`** — register at <https://finnhub.io/register> (the free tier is fine), confirm your email, and copy the key from your [Finnhub dashboard](https://finnhub.io/dashboard).
+- **`TIINGO_API_KEY`** (optional, for real pre/post-market prices) — register at <https://www.tiingo.com> (free), copy the token from your account's API page. When set alongside Finnhub, Tiingo's IEX feed supplies pre-market/after-hours prices (Finnhub's free tier only reliably covers the regular session). Note: Tiingo free is IEX-only, so extended-hours prints can be sparse for thinly-traded tickers.
 - **`SNAPTRADE_CLIENT_ID`** and **`SNAPTRADE_CONSUMER_KEY`** — sign up at <https://dashboard.snaptrade.com>, verify your email, then on the API Keys page copy the **Client ID** and **Consumer Key** (the Consumer Key is a secret — keep it private).
 - **`SNAPTRADE_USER_ID`** — for a personal SnapTrade key this is the **email you signed up with**. SnapTrade auto-creates one user for your account at signup, so you don't invent or register a new id.
 - **Link your brokerage (e.g. Fidelity):** SnapTrade needs your brokerage account connected before any holdings appear, through SnapTrade's Connection Portal. You new `http://localhost:38080/sync` API can't pull data until it's linked.
@@ -513,7 +520,7 @@ The sync logic determines the market session and writes prices with session/sour
 * `afterhours`
 * `closed`
 
-The `source` column identifies whether the row came from quote, candle, or fallback quote data.
+The `source` column identifies where the price came from: `finnhub_quote`, `finnhub_candle_1m`, `finnhub_quote_fallback` (Finnhub), or `tiingo_iex` (Tiingo IEX, used for extended hours when a Tiingo key is set).
 
 ## Database tables
 

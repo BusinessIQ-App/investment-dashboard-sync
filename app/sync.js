@@ -117,6 +117,12 @@ async function getMarketSession(date = new Date()) {
     return 'closed';
   }
 
+  // Holiday detection uses Finnhub's market-status endpoint. With no Finnhub key
+  // (Tiingo-only mode) skip it and rely on the time-based session.
+  if (!process.env.FINNHUB_API_KEY) {
+    return timeBasedSession;
+  }
+
   try {
     const response = await axios.get(
       'https://finnhub.io/api/v1/stock/market-status',
@@ -209,22 +215,56 @@ async function fetchFinnhubCandlePrice(ticker) {
   return null;
 }
 
-async function fetchBestFinnhubPrice(ticker, session) {
-  if (session === 'premarket' || session === 'afterhours') {
-    try {
-      const candlePrice = await fetchFinnhubCandlePrice(ticker);
+async function fetchTiingoPrice(ticker) {
+  if (!process.env.TIINGO_API_KEY) {
+    return null;
+  }
 
-      if (candlePrice) {
-        return candlePrice;
+  try {
+    const response = await axios.get(
+      `https://api.tiingo.com/iex/${encodeURIComponent(ticker)}`,
+      {
+        headers: {
+          Authorization: `Token ${process.env.TIINGO_API_KEY}`
+        }
       }
+    );
 
-      console.log(`No candle data for ${ticker}; falling back to quote.`);
-    } catch (err) {
-      console.log(
-        `Candle lookup failed for ${ticker}; falling back to quote:`,
-        err.response?.status || err.status || err.message
-      );
+    const row = Array.isArray(response.data) ? response.data[0] : null;
+    const price = Number(row?.tngoLast ?? row?.last ?? 0);
+
+    if (!price) {
+      return null;
     }
+
+    return {
+      price,
+      source: 'tiingo_iex'
+    };
+  } catch (err) {
+    console.log(
+      `Tiingo lookup failed for ${ticker}:`,
+      err.response?.status || err.status || err.message
+    );
+    return null;
+  }
+}
+
+// Finnhub extended-hours behavior: prefer the 1-minute candle, fall back to the quote.
+async function fetchFinnhubExtendedPrice(ticker) {
+  try {
+    const candlePrice = await fetchFinnhubCandlePrice(ticker);
+
+    if (candlePrice) {
+      return candlePrice;
+    }
+
+    console.log(`No candle data for ${ticker}; falling back to quote.`);
+  } catch (err) {
+    console.log(
+      `Candle lookup failed for ${ticker}; falling back to quote:`,
+      err.response?.status || err.status || err.message
+    );
   }
 
   try {
@@ -233,9 +273,7 @@ async function fetchBestFinnhubPrice(ticker, session) {
     if (quotePrice) {
       return {
         price: quotePrice.price,
-        source: session === 'regular'
-          ? 'finnhub_quote'
-          : 'finnhub_quote_fallback'
+        source: 'finnhub_quote_fallback'
       };
     }
   } catch (err) {
@@ -248,7 +286,75 @@ async function fetchBestFinnhubPrice(ticker, session) {
   return null;
 }
 
+// Finnhub regular-session quote.
+async function fetchFinnhubRegularPrice(ticker) {
+  try {
+    const quotePrice = await fetchFinnhubQuotePrice(ticker);
+
+    if (quotePrice) {
+      return {
+        price: quotePrice.price,
+        source: 'finnhub_quote'
+      };
+    }
+  } catch (err) {
+    console.log(
+      `Quote lookup failed for ${ticker}:`,
+      err.response?.status || err.status || err.message
+    );
+  }
+
+  return null;
+}
+
+// Choose the price provider by which API keys are configured and the session:
+//   - regular: Finnhub if available, otherwise Tiingo
+//   - premarket/afterhours: Tiingo if available (real pre/post prices), otherwise Finnhub
+// So with both keys, Tiingo handles extended hours and Finnhub the regular session; with
+// only one key, that provider handles every session.
+async function fetchBestPrice(ticker, session) {
+  const hasFinnhub = !!process.env.FINNHUB_API_KEY;
+  const hasTiingo = !!process.env.TIINGO_API_KEY;
+
+  if (session === 'premarket' || session === 'afterhours') {
+    if (hasTiingo) {
+      const tiingoPrice = await fetchTiingoPrice(ticker);
+
+      if (tiingoPrice) {
+        return tiingoPrice;
+      }
+
+      if (hasFinnhub) {
+        console.log(`No Tiingo price for ${ticker}; falling back to Finnhub.`);
+      }
+    }
+
+    if (hasFinnhub) {
+      return fetchFinnhubExtendedPrice(ticker);
+    }
+
+    return null;
+  }
+
+  // Regular session.
+  if (hasFinnhub) {
+    return fetchFinnhubRegularPrice(ticker);
+  }
+
+  if (hasTiingo) {
+    return fetchTiingoPrice(ticker);
+  }
+
+  return null;
+}
+
 async function main() {
+  if (!process.env.FINNHUB_API_KEY && !process.env.TIINGO_API_KEY) {
+    console.warn(
+      'No FINNHUB_API_KEY or TIINGO_API_KEY set — price fetching will be skipped.'
+    );
+  }
+
   const snaptrade = new Snaptrade({
     clientId: process.env.SNAPTRADE_CLIENT_ID,
     consumerKey: process.env.SNAPTRADE_CONSUMER_KEY
@@ -356,10 +462,10 @@ async function main() {
   }
 
   for (const ticker of tickers) {
-    const result = await fetchBestFinnhubPrice(ticker, session);
+    const result = await fetchBestPrice(ticker, session);
 
     if (!result) {
-      console.log(`No Finnhub price for ${ticker}`);
+      console.log(`No price for ${ticker}`);
       continue;
     }
 
@@ -379,7 +485,7 @@ async function main() {
     );
 
     console.log(
-      `Finnhub price: ${ticker} ${result.price} session=${session} source=${result.source}`
+      `Price: ${ticker} ${result.price} session=${session} source=${result.source}`
     );
   }
 
