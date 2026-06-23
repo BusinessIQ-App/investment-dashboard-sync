@@ -1457,6 +1457,10 @@
               {
                 "id": "custom.width",
                 "value": 83
+              },
+              {
+                "id": "displayName",
+                "value": "Ticker"
               }
             ]
           },
@@ -1473,6 +1477,10 @@
               {
                 "id": "custom.width",
                 "value": 102
+              },
+              {
+                "id": "displayName",
+                "value": "Value"
               }
             ]
           },
@@ -1489,6 +1497,10 @@
               {
                 "id": "custom.width",
                 "value": 79
+              },
+              {
+                "id": "displayName",
+                "value": "Avg Cost"
               }
             ]
           },
@@ -1505,6 +1517,10 @@
               {
                 "id": "custom.width",
                 "value": 79
+              },
+              {
+                "id": "displayName",
+                "value": "Cost Basis"
               }
             ]
           },
@@ -1521,6 +1537,10 @@
               {
                 "id": "custom.width",
                 "value": 92
+              },
+              {
+                "id": "displayName",
+                "value": "Price"
               }
             ]
           },
@@ -1537,6 +1557,10 @@
               {
                 "id": "custom.width",
                 "value": 81
+              },
+              {
+                "id": "displayName",
+                "value": "Open Price"
               }
             ]
           },
@@ -1553,6 +1577,10 @@
               {
                 "id": "custom.width",
                 "value": 88
+              },
+              {
+                "id": "displayName",
+                "value": "Day $"
               }
             ]
           },
@@ -1569,6 +1597,10 @@
               {
                 "id": "custom.width",
                 "value": 100
+              },
+              {
+                "id": "displayName",
+                "value": "Total $"
               }
             ]
           },
@@ -1585,6 +1617,10 @@
               {
                 "id": "custom.width",
                 "value": 118
+              },
+              {
+                "id": "displayName",
+                "value": "Day %"
               }
             ]
           },
@@ -1601,6 +1637,10 @@
               {
                 "id": "custom.width",
                 "value": 129
+              },
+              {
+                "id": "displayName",
+                "value": "Total %"
               }
             ]
           },
@@ -1613,6 +1653,10 @@
               {
                 "id": "custom.width",
                 "value": 131
+              },
+              {
+                "id": "displayName",
+                "value": "Price Time"
               }
             ]
           },
@@ -1625,6 +1669,10 @@
               {
                 "id": "custom.width",
                 "value": 138
+              },
+              {
+                "id": "displayName",
+                "value": "Open Time"
               }
             ]
           },
@@ -1637,6 +1685,10 @@
               {
                 "id": "custom.width",
                 "value": 111
+              },
+              {
+                "id": "displayName",
+                "value": "Account"
               }
             ]
           },
@@ -1649,6 +1701,10 @@
               {
                 "id": "custom.width",
                 "value": 127
+              },
+              {
+                "id": "displayName",
+                "value": "Source"
               }
             ]
           },
@@ -1661,6 +1717,10 @@
               {
                 "id": "custom.width",
                 "value": 109
+              },
+              {
+                "id": "displayName",
+                "value": "Session"
               }
             ]
           },
@@ -1673,6 +1733,10 @@
               {
                 "id": "custom.width",
                 "value": 58
+              },
+              {
+                "id": "displayName",
+                "value": "Shares"
               }
             ]
           }
