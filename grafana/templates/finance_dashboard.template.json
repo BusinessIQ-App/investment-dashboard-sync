@@ -613,7 +613,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_holdings AS (\n  SELECT\n    date_trunc('minute', h.snapshot_time) AS snapshot_minute,\n    h.ticker,\n    SUM(h.shares) AS shares\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY 1, 2\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(COALESCE(h.shares * lp.latest_price, h.market_value)) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  LEFT JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n)\nSELECT\n  date_trunc('minute', p.timestamp) AS \"time\",\n  p.ticker AS metric,\n  ROUND(AVG(p.price * fh.shares)::numeric, 2) AS value\nFROM filtered_prices p\nJOIN filtered_holdings fh\n  ON fh.ticker = p.ticker\n AND fh.snapshot_minute = date_trunc('minute', p.timestamp)\nLEFT JOIN ranked tv ON tv.ticker = p.ticker\nWHERE COALESCE(tv.rnk, 1000000) <= 5\n  AND '${Top5}' IN ('AB', 'A')\nGROUP BY 1, 2, tv.pos_value\nORDER BY 1, tv.pos_value DESC NULLS LAST;",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_holdings AS (\n  SELECT\n    date_trunc('minute', h.snapshot_time) AS snapshot_minute,\n    h.ticker,\n    SUM(h.shares) AS shares\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY 1, 2\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(h.shares * lp.latest_price) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n)\nSELECT\n  date_trunc('minute', p.timestamp) AS \"time\",\n  p.ticker AS metric,\n  ROUND(AVG(p.price * fh.shares)::numeric, 2) AS value\nFROM filtered_prices p\nJOIN filtered_holdings fh\n  ON fh.ticker = p.ticker\n AND fh.snapshot_minute = date_trunc('minute', p.timestamp)\nLEFT JOIN ranked tv ON tv.ticker = p.ticker\nWHERE COALESCE(tv.rnk, 1000000) <= 5\n  AND '${show_n}'::int > 0\n  AND COALESCE(tv.rnk, 1000000) <= '${show_n}'::int\nGROUP BY 1, 2, tv.pos_value\nORDER BY 1, tv.pos_value DESC NULLS LAST;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -642,7 +642,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_holdings AS (\n  SELECT\n    date_trunc('minute', h.snapshot_time) AS snapshot_minute,\n    h.ticker,\n    SUM(h.shares) AS shares\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY 1, 2\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(COALESCE(h.shares * lp.latest_price, h.market_value)) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  LEFT JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n)\nSELECT\n  date_trunc('minute', p.timestamp) AS \"time\",\n  p.ticker AS metric,\n  ROUND(AVG(p.price * fh.shares)::numeric, 2) AS value\nFROM filtered_prices p\nJOIN filtered_holdings fh\n  ON fh.ticker = p.ticker\n AND fh.snapshot_minute = date_trunc('minute', p.timestamp)\nLEFT JOIN ranked tv ON tv.ticker = p.ticker\nWHERE COALESCE(tv.rnk, 1000000) > 5\n  AND '${Top5}' IN ('AB', 'B')\nGROUP BY 1, 2, tv.pos_value\nORDER BY 1, tv.pos_value DESC NULLS LAST;",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_holdings AS (\n  SELECT\n    date_trunc('minute', h.snapshot_time) AS snapshot_minute,\n    h.ticker,\n    SUM(h.shares) AS shares\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY 1, 2\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(h.shares * lp.latest_price) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n)\nSELECT\n  date_trunc('minute', p.timestamp) AS \"time\",\n  p.ticker AS metric,\n  ROUND(AVG(p.price * fh.shares)::numeric, 2) AS value\nFROM filtered_prices p\nJOIN filtered_holdings fh\n  ON fh.ticker = p.ticker\n AND fh.snapshot_minute = date_trunc('minute', p.timestamp)\nLEFT JOIN ranked tv ON tv.ticker = p.ticker\nWHERE COALESCE(tv.rnk, 1000000) > 5\n  AND ('${show_n}'::int < 0 OR COALESCE(tv.rnk, 1000000) <= '${show_n}'::int)\nGROUP BY 1, 2, tv.pos_value\nORDER BY 1, tv.pos_value DESC NULLS LAST;",
           "refId": "B",
           "sql": {
             "columns": [
@@ -786,7 +786,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\neligible_tickers AS (\n  SELECT DISTINCT h.ticker\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(COALESCE(h.shares * lp.latest_price, h.market_value)) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  LEFT JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n),\nwindowed AS (\n  SELECT\n    fp.ticker,\n    fp.timestamp,\n    fp.price\n  FROM filtered_prices fp\n  JOIN eligible_tickers e ON e.ticker = fp.ticker\n  WHERE $__timeFilter(fp.timestamp)\n),\nbaseline AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS base_price\n  FROM windowed\n  ORDER BY ticker, timestamp ASC\n)\nSELECT\n  w.timestamp AS \"time\",\n  w.ticker AS metric,\n  ROUND(((w.price - b.base_price) / b.base_price * 100)::numeric, 2) AS value\nFROM windowed w\nJOIN baseline b ON b.ticker = w.ticker\nLEFT JOIN ranked tv ON tv.ticker = w.ticker\nWHERE b.base_price <> 0\n  AND COALESCE(tv.rnk, 1000000) <= 5\n  AND '${Top5}' IN ('AB', 'A')\nORDER BY w.timestamp, tv.pos_value DESC NULLS LAST;",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\neligible_tickers AS (\n  SELECT DISTINCT h.ticker\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(h.shares * lp.latest_price) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n),\nwindowed AS (\n  SELECT\n    fp.ticker,\n    fp.timestamp,\n    fp.price\n  FROM filtered_prices fp\n  JOIN eligible_tickers e ON e.ticker = fp.ticker\n  WHERE $__timeFilter(fp.timestamp)\n),\nbaseline AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS base_price\n  FROM windowed\n  ORDER BY ticker, timestamp ASC\n)\nSELECT\n  w.timestamp AS \"time\",\n  w.ticker AS metric,\n  ROUND(((w.price - b.base_price) / b.base_price * 100)::numeric, 2) AS value\nFROM windowed w\nJOIN baseline b ON b.ticker = w.ticker\nLEFT JOIN ranked tv ON tv.ticker = w.ticker\nWHERE b.base_price <> 0\n  AND COALESCE(tv.rnk, 1000000) <= 5\n  AND '${show_n}'::int > 0\n  AND COALESCE(tv.rnk, 1000000) <= '${show_n}'::int\nORDER BY w.timestamp, tv.pos_value DESC NULLS LAST;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -815,7 +815,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\neligible_tickers AS (\n  SELECT DISTINCT h.ticker\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(COALESCE(h.shares * lp.latest_price, h.market_value)) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  LEFT JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n),\nwindowed AS (\n  SELECT\n    fp.ticker,\n    fp.timestamp,\n    fp.price\n  FROM filtered_prices fp\n  JOIN eligible_tickers e ON e.ticker = fp.ticker\n  WHERE $__timeFilter(fp.timestamp)\n),\nbaseline AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS base_price\n  FROM windowed\n  ORDER BY ticker, timestamp ASC\n)\nSELECT\n  w.timestamp AS \"time\",\n  w.ticker AS metric,\n  ROUND(((w.price - b.base_price) / b.base_price * 100)::numeric, 2) AS value\nFROM windowed w\nJOIN baseline b ON b.ticker = w.ticker\nLEFT JOIN ranked tv ON tv.ticker = w.ticker\nWHERE b.base_price <> 0\n  AND COALESCE(tv.rnk, 1000000) > 5\n  AND '${Top5}' IN ('AB', 'B')\nORDER BY w.timestamp, tv.pos_value DESC NULLS LAST;",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\neligible_tickers AS (\n  SELECT DISTINCT h.ticker\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(h.shares * lp.latest_price) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n),\nwindowed AS (\n  SELECT\n    fp.ticker,\n    fp.timestamp,\n    fp.price\n  FROM filtered_prices fp\n  JOIN eligible_tickers e ON e.ticker = fp.ticker\n  WHERE $__timeFilter(fp.timestamp)\n),\nbaseline AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS base_price\n  FROM windowed\n  ORDER BY ticker, timestamp ASC\n)\nSELECT\n  w.timestamp AS \"time\",\n  w.ticker AS metric,\n  ROUND(((w.price - b.base_price) / b.base_price * 100)::numeric, 2) AS value\nFROM windowed w\nJOIN baseline b ON b.ticker = w.ticker\nLEFT JOIN ranked tv ON tv.ticker = w.ticker\nWHERE b.base_price <> 0\n  AND COALESCE(tv.rnk, 1000000) > 5\n  AND ('${show_n}'::int < 0 OR COALESCE(tv.rnk, 1000000) <= '${show_n}'::int)\nORDER BY w.timestamp, tv.pos_value DESC NULLS LAST;",
           "refId": "B",
           "sql": {
             "columns": [
@@ -954,7 +954,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\neligible_tickers AS (\n  SELECT DISTINCT\n    date_trunc('minute', h.snapshot_time) AS snapshot_minute,\n    h.ticker\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(COALESCE(h.shares * lp.latest_price, h.market_value)) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  LEFT JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n)\nSELECT\n  date_trunc('minute', p.timestamp) AS \"time\",\n  p.ticker AS metric,\n  AVG(p.price) AS value\nFROM filtered_prices p\nJOIN eligible_tickers e\n  ON e.ticker = p.ticker\n AND e.snapshot_minute = date_trunc('minute', p.timestamp)\nLEFT JOIN ranked tv ON tv.ticker = p.ticker\nWHERE COALESCE(tv.rnk, 1000000) <= 5\n  AND '${Top5}' IN ('AB', 'A')\nGROUP BY 1, 2, tv.pos_value\nORDER BY 1, tv.pos_value DESC NULLS LAST;",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\neligible_tickers AS (\n  SELECT DISTINCT\n    date_trunc('minute', h.snapshot_time) AS snapshot_minute,\n    h.ticker\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(h.shares * lp.latest_price) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n)\nSELECT\n  date_trunc('minute', p.timestamp) AS \"time\",\n  p.ticker AS metric,\n  AVG(p.price) AS value\nFROM filtered_prices p\nJOIN eligible_tickers e\n  ON e.ticker = p.ticker\n AND e.snapshot_minute = date_trunc('minute', p.timestamp)\nLEFT JOIN ranked tv ON tv.ticker = p.ticker\nWHERE COALESCE(tv.rnk, 1000000) <= 5\n  AND '${show_n}'::int > 0\n  AND COALESCE(tv.rnk, 1000000) <= '${show_n}'::int\nGROUP BY 1, 2, tv.pos_value\nORDER BY 1, tv.pos_value DESC NULLS LAST;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -983,7 +983,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\neligible_tickers AS (\n  SELECT DISTINCT\n    date_trunc('minute', h.snapshot_time) AS snapshot_minute,\n    h.ticker\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(COALESCE(h.shares * lp.latest_price, h.market_value)) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  LEFT JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n)\nSELECT\n  date_trunc('minute', p.timestamp) AS \"time\",\n  p.ticker AS metric,\n  AVG(p.price) AS value\nFROM filtered_prices p\nJOIN eligible_tickers e\n  ON e.ticker = p.ticker\n AND e.snapshot_minute = date_trunc('minute', p.timestamp)\nLEFT JOIN ranked tv ON tv.ticker = p.ticker\nWHERE COALESCE(tv.rnk, 1000000) > 5\n  AND '${Top5}' IN ('AB', 'B')\nGROUP BY 1, 2, tv.pos_value\nORDER BY 1, tv.pos_value DESC NULLS LAST;",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\neligible_tickers AS (\n  SELECT DISTINCT\n    date_trunc('minute', h.snapshot_time) AS snapshot_minute,\n    h.ticker\n  FROM holdings_history h\n  CROSS JOIN selected_account s\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nticker_value AS (\n  SELECT\n    h.ticker,\n    SUM(h.shares * lp.latest_price) AS pos_value\n  FROM holdings h\n  CROSS JOIN selected_account s\n  JOIN latest_prices lp ON lp.ticker = h.ticker\n  WHERE (s.account_name IS NULL OR h.account_name = s.account_name)\n  GROUP BY h.ticker\n),\nranked AS (\n  SELECT\n    ticker,\n    pos_value,\n    RANK() OVER (ORDER BY pos_value DESC NULLS LAST) AS rnk\n  FROM ticker_value\n)\nSELECT\n  date_trunc('minute', p.timestamp) AS \"time\",\n  p.ticker AS metric,\n  AVG(p.price) AS value\nFROM filtered_prices p\nJOIN eligible_tickers e\n  ON e.ticker = p.ticker\n AND e.snapshot_minute = date_trunc('minute', p.timestamp)\nLEFT JOIN ranked tv ON tv.ticker = p.ticker\nWHERE COALESCE(tv.rnk, 1000000) > 5\n  AND ('${show_n}'::int < 0 OR COALESCE(tv.rnk, 1000000) <= '${show_n}'::int)\nGROUP BY 1, 2, tv.pos_value\nORDER BY 1, tv.pos_value DESC NULLS LAST;",
           "refId": "B",
           "sql": {
             "columns": [
@@ -1811,20 +1811,105 @@
       {
         "allowCustomValue": false,
         "current": {
-          "text": "Top 5",
-          "value": "A"
+          "text": "All",
+          "value": "999"
         },
-        "description": "Which positions show in the history graphs: top 5 by value (solid), the rest (dotted), or all.",
+        "description": "How many holdings to show in the history charts: All, a number (top N), or -Top5 (all except the top 5). Top 5 render solid, the rest dotted.",
         "hide": 0,
         "includeAll": false,
-        "label": "Top 5",
+        "label": "Show",
         "multi": false,
-        "name": "Top5",
-        "options": [],
-        "query": "All : AB, Top 5 : A, Others Only : B",
+        "name": "show_n",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "999"
+          },
+          {
+            "selected": false,
+            "text": "1",
+            "value": "1"
+          },
+          {
+            "selected": false,
+            "text": "2",
+            "value": "2"
+          },
+          {
+            "selected": false,
+            "text": "3",
+            "value": "3"
+          },
+          {
+            "selected": false,
+            "text": "4",
+            "value": "4"
+          },
+          {
+            "selected": false,
+            "text": "5",
+            "value": "5"
+          },
+          {
+            "selected": false,
+            "text": "6",
+            "value": "6"
+          },
+          {
+            "selected": false,
+            "text": "7",
+            "value": "7"
+          },
+          {
+            "selected": false,
+            "text": "8",
+            "value": "8"
+          },
+          {
+            "selected": false,
+            "text": "9",
+            "value": "9"
+          },
+          {
+            "selected": false,
+            "text": "10",
+            "value": "10"
+          },
+          {
+            "selected": false,
+            "text": "11",
+            "value": "11"
+          },
+          {
+            "selected": false,
+            "text": "12",
+            "value": "12"
+          },
+          {
+            "selected": false,
+            "text": "13",
+            "value": "13"
+          },
+          {
+            "selected": false,
+            "text": "14",
+            "value": "14"
+          },
+          {
+            "selected": false,
+            "text": "15",
+            "value": "15"
+          },
+          {
+            "selected": false,
+            "text": "-Top5",
+            "value": "-1"
+          }
+        ],
+        "query": "All : 999, 1 : 1, 2 : 2, 3 : 3, 4 : 4, 5 : 5, 6 : 6, 7 : 7, 8 : 8, 9 : 9, 10 : 10, 11 : 11, 12 : 12, 13 : 13, 14 : 14, 15 : 15, -Top5 : -1",
         "skipUrlSync": false,
-        "type": "custom",
-        "valuesFormat": "csv"
+        "type": "custom"
       },
       {
         "current": {
