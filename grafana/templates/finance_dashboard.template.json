@@ -288,7 +288,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "dfpli1tj8oqgwe"
       },
-      "description": "Change since today's regular open, computed from live prices. Filters by Account variable.",
+      "description": "Sum across holdings of shares x (latest price − last known regular-session open). Honors Account and Price Session toggles.",
       "fieldConfig": {
         "defaults": {
           "color": {
