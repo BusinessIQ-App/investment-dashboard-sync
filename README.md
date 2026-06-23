@@ -192,9 +192,9 @@ Notes:
 * `SYNC_PUBLIC_URL` controls the dashboard’s **Run Sync** link.
 * `DATABASE_URL` should normally stay as `postgres://portfolio:portfolio@postgres:5432/portfolio` because containers communicate internally using the Docker service name `postgres`.
 
-The `.env-finance` file contains secrets and must not be committed.
+The `.env-finance` file now contains secrets! (Developers - it must not be committed).
 
-### Getting your FinnHub A& SnapTrade API credentials:
+### Getting your FinnHub, Tiingo & SnapTrade API credentials:
 
 You need five values for `.env-finance`. Four are copy/paste from the two providers' websites; the fifth (`SNAPTRADE_USER_SECRET`) is returned by one command.
 
