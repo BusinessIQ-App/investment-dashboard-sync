@@ -288,7 +288,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "dfpli1tj8oqgwe"
       },
-      "description": "Sum across holdings of shares x (latest price − last known regular-session open). Honors Account and Price Session toggles.",
+      "description": "Sum across holdings of shares x (latest price − last known regular-session close). Honors Account and Price Session toggles.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -346,7 +346,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nlast_regular_session_by_ticker AS (\n  SELECT\n    ticker,\n    MAX(timestamp::date) AS session_date\n  FROM prices\n  WHERE session = 'regular'\n  GROUP BY ticker\n),\nregular_open_prices AS (\n  SELECT DISTINCT ON (p.ticker)\n    p.ticker,\n    p.price AS regular_open_price\n  FROM prices p\n  JOIN last_regular_session_by_ticker lrs\n    ON lrs.ticker = p.ticker\n   AND lrs.session_date = p.timestamp::date\n  WHERE p.session = 'regular'\n  ORDER BY p.ticker, p.timestamp ASC\n)\nSELECT\n  ROUND(COALESCE(SUM(h.shares * (lp.latest_price - rop.regular_open_price)), 0)::numeric, 2) AS today_change\nFROM holdings h\nCROSS JOIN selected_account s\nJOIN latest_prices lp ON lp.ticker = h.ticker\nJOIN regular_open_prices rop ON rop.ticker = h.ticker\nWHERE (s.account_name IS NULL OR h.account_name = s.account_name);",
+          "rawSql": "WITH selected_account AS (\n  SELECT CASE\n    WHEN '${switch0}' = 'All' THEN NULL\n    ELSE '${switch0}'\n  END AS account_name\n),\nfiltered_prices AS (\n  SELECT\n    p.*\n  FROM prices p\n  WHERE (\n    '${session_filter}' <> 'Regular Only'\n    OR p.session = 'regular'\n  )\n),\nlatest_prices AS (\n  SELECT DISTINCT ON (ticker)\n    ticker,\n    price AS latest_price,\n    timestamp AS latest_ts\n  FROM filtered_prices\n  ORDER BY ticker, timestamp DESC\n),\nregular_closes AS (\n  SELECT DISTINCT ON (ticker, timestamp::date)\n    ticker,\n    timestamp::date AS session_date,\n    price AS close_price,\n    timestamp AS close_ts\n  FROM prices\n  WHERE session = 'regular'\n  ORDER BY ticker, timestamp::date, timestamp DESC\n),\nprev_close AS (\n  SELECT DISTINCT ON (rc.ticker)\n    rc.ticker,\n    rc.close_price\n  FROM regular_closes rc\n  JOIN latest_prices lp ON lp.ticker = rc.ticker\n  WHERE rc.close_ts < lp.latest_ts\n  ORDER BY rc.ticker, rc.close_ts DESC\n)\nSELECT\n  ROUND(COALESCE(SUM(h.shares * (lp.latest_price - pc.close_price)), 0)::numeric, 2) AS today_change\nFROM holdings h\nCROSS JOIN selected_account s\nJOIN latest_prices lp ON lp.ticker = h.ticker\nJOIN prev_close pc ON pc.ticker = h.ticker\nWHERE (s.account_name IS NULL OR h.account_name = s.account_name);",
           "refId": "A",
           "sql": {
             "columns": [
