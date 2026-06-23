@@ -18,9 +18,9 @@ I created this primarily out of frustration that fidelity doesn't provide a line
 ## Quick start (no clone required)
 
 **AT A GLANCE:**
-- Create a Snaptrade account and link your fidelity account(s) there. 
-- Create a personal Finnhub (mine is a free) account for credentials to pull current price quotes (optionally also a free Tiingo account to add real pre-market/after-hours prices)
-- Create the two files (yml & env) per the instructions below and save your secrets into the env file
+- **Create a Snaptrade account** and link your fidelity account(s) there. 
+- **Create a personal Finnhub** account (mine is a free) for credentials to pull current price quotes (**optionally also a free Tiingo account** to add real pre-market/after-hours prices)
+- **Create the two files (yml & env) per the instructions below** and update the env file with your created accounts' keys/info
 - This project will generate a DB and Grafana dashboard (Dashboards/portfolio/finance_dashboard) accessible at localhost:3300 as soon as you pull & start via the docker compose yml below 👇
 
 **THE FULL DEETS:**
