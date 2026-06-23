@@ -148,6 +148,88 @@ docker compose -f docker-compose-finance.yml --env-file .env-finance up -d
 
 Open Grafana at `http://localhost:3300` (or `http://SERVER_IP:3300`). The dashboard lands in the **Portfolio** folder; trigger the first data load with `curl http://localhost:38080/sync`.
 
+## Environment file setup (.env-finance)
+
+Copy the example environment file:
+
+```bash
+cp .env-finance.example .env-finance
+```
+
+Edit it:
+
+```bash
+nano .env-finance
+```
+
+Required values:
+
+```bash
+FINNHUB_API_KEY=
+TIINGO_API_KEY=
+SNAPTRADE_CLIENT_ID=
+SNAPTRADE_CONSUMER_KEY=
+SNAPTRADE_USER_ID=
+SNAPTRADE_USER_SECRET=
+DATABASE_URL=postgres://portfolio:portfolio@postgres:5432/portfolio
+
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=change-this-password
+GRAFANA_HOST_PORT=3300
+SYNC_HOST_PORT=38080
+
+SYNC_PUBLIC_URL=http://localhost:38080/sync
+```
+
+Notes:
+
+* **Price providers (`FINNHUB_API_KEY` / `TIINGO_API_KEY`)** — set at least one. With
+  **both**, Finnhub serves the **regular** session and Tiingo serves **pre-market /
+  after-hours** (Tiingo's free IEX feed reflects real extended-hours trades, which
+  Finnhub's free tier doesn't). With only **one** set, that provider serves every session.
+* `GRAFANA_HOST_PORT` controls the host port for Grafana.
+* `SYNC_HOST_PORT` controls the host port for the manual sync API.
+* `SYNC_PUBLIC_URL` controls the dashboard’s **Run Sync** link.
+* `DATABASE_URL` should normally stay as `postgres://portfolio:portfolio@postgres:5432/portfolio` because containers communicate internally using the Docker service name `postgres`.
+
+The `.env-finance` file contains secrets and must not be committed.
+
+### Getting your FinnHub A& SnapTrade API credentials:
+
+You need five values for `.env-finance`. Four are copy/paste from the two providers' websites; the fifth (`SNAPTRADE_USER_SECRET`) is returned by one command.
+
+**Copy these from the browser:**
+
+- **`FINNHUB_API_KEY`** — register at <https://finnhub.io/register> (the free tier is fine), confirm your email, and copy the key from your [Finnhub dashboard](https://finnhub.io/dashboard).
+- **`TIINGO_API_KEY`** (optional, for real pre/post-market prices) — register at <https://www.tiingo.com> (free), copy the token from your account's API page. When set alongside Finnhub, Tiingo's IEX feed supplies pre-market/after-hours prices (Finnhub's free tier only reliably covers the regular session). Note: Tiingo free is IEX-only, so extended-hours prints can be sparse for thinly-traded tickers.
+- **`SNAPTRADE_CLIENT_ID`** and **`SNAPTRADE_CONSUMER_KEY`** — sign up at <https://dashboard.snaptrade.com>, verify your email, then on the API Keys page copy the **Client ID** and **Consumer Key** (the Consumer Key is a secret — keep it private).
+- **`SNAPTRADE_USER_ID`** — for a personal SnapTrade key this is the **email you signed up with**. SnapTrade auto-creates one user for your account at signup, so you don't invent or register a new id.
+- **Link your brokerage (e.g. Fidelity):** SnapTrade needs your brokerage account connected before any holdings appear, through SnapTrade's Connection Portal. You new `http://localhost:38080/sync` API can't pull data until it's linked.
+
+**Get `SNAPTRADE_USER_SECRET` with one command:**
+
+SnapTrade never shows the user secret in the dashboard, and you can't fetch it with `registerUser` (your user already exists). Instead, mint one with the **reset/rotate** endpoint, which returns a fresh secret given just your `userId`. This needs only Python 3 (preinstalled on macOS and most Linux) — no Docker, no SDK, nothing to install. Replace the three bracketed placeholders (keep the double quotes) and run it in your terminal:
+
+```bash
+python3 -c '
+import json,hmac,hashlib,base64,time,urllib.request,urllib.error
+clientId="[REPLACE_WITH_YOUR_SNAPTRADE_CLIENT_ID]"
+consumerKey="[REPLACE_WITH_YOUR_SNAPTRADE_CONSUMER_KEY]"
+userId="[REPLACE_WITH_YOUR_SNAPTRADE_EMAIL]"
+query="clientId="+clientId+"&timestamp="+str(int(time.time()))
+body={"userId":userId}
+sigContent=json.dumps({"content":body,"path":"/api/v1/snapTrade/resetUserSecret","query":query},separators=(",",":"),sort_keys=True)
+sig=base64.b64encode(hmac.new(consumerKey.encode(),sigContent.encode(),hashlib.sha256).digest()).decode()
+req=urllib.request.Request("https://api.snaptrade.com/api/v1/snapTrade/resetUserSecret?"+query,data=json.dumps(body).encode(),headers={"Content-Type":"application/json","Signature":sig},method="POST")
+try: print("SNAPTRADE_USER_SECRET="+json.load(urllib.request.urlopen(req))["userSecret"])
+except urllib.error.HTTPError as e: print("Error",e.code,e.read().decode())
+'
+```
+
+Paste the resulting `SNAPTRADE_USER_SECRET=…` (UUID format) into `.env-finance`.
+
+> ⚠️ This **rotates** the secret — run it once and save the result. Each call invalidates the previous secret, so if you run it again you must update `.env-finance` with the new value and restart the stack.
+
 ## Built for Fidelity, adaptable to other sources
 
 This dashboard was originally built to pull a Fidelity portfolio into a self-hosted view by way of SnapTrade, which is the only brokerage-facing dependency. Nothing downstream of the sync app is Fidelity-specific: the database schema, Grafana dashboard, and price logic only care about generic accounts, tickers, shares, and values.
@@ -254,88 +336,6 @@ ghcr.io/businessiq-app/investment-dashboard-sync:latest
 ```
 
 The image contains the Node.js sync application plus baked-in assets used at startup: the Grafana dashboard template and provisioning configs (for `grafana-init`) and the idempotent database schema (applied by `sync.js`). PostgreSQL and Grafana themselves use public upstream images.
-
-## Environment file setup (.env-finance)
-
-Copy the example environment file:
-
-```bash
-cp .env-finance.example .env-finance
-```
-
-Edit it:
-
-```bash
-nano .env-finance
-```
-
-Required values:
-
-```bash
-FINNHUB_API_KEY=
-TIINGO_API_KEY=
-SNAPTRADE_CLIENT_ID=
-SNAPTRADE_CONSUMER_KEY=
-SNAPTRADE_USER_ID=
-SNAPTRADE_USER_SECRET=
-DATABASE_URL=postgres://portfolio:portfolio@postgres:5432/portfolio
-
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=change-this-password
-GRAFANA_HOST_PORT=3300
-SYNC_HOST_PORT=38080
-
-SYNC_PUBLIC_URL=http://localhost:38080/sync
-```
-
-Notes:
-
-* **Price providers (`FINNHUB_API_KEY` / `TIINGO_API_KEY`)** — set at least one. With
-  **both**, Finnhub serves the **regular** session and Tiingo serves **pre-market /
-  after-hours** (Tiingo's free IEX feed reflects real extended-hours trades, which
-  Finnhub's free tier doesn't). With only **one** set, that provider serves every session.
-* `GRAFANA_HOST_PORT` controls the host port for Grafana.
-* `SYNC_HOST_PORT` controls the host port for the manual sync API.
-* `SYNC_PUBLIC_URL` controls the dashboard’s **Run Sync** link.
-* `DATABASE_URL` should normally stay as `postgres://portfolio:portfolio@postgres:5432/portfolio` because containers communicate internally using the Docker service name `postgres`.
-
-The `.env-finance` file contains secrets and must not be committed.
-
-### Getting your FinnHub A& SnapTrade API credentials:
-
-You need five values for `.env-finance`. Four are copy/paste from the two providers' websites; the fifth (`SNAPTRADE_USER_SECRET`) is returned by one command.
-
-**Copy these from the browser:**
-
-- **`FINNHUB_API_KEY`** — register at <https://finnhub.io/register> (the free tier is fine), confirm your email, and copy the key from your [Finnhub dashboard](https://finnhub.io/dashboard).
-- **`TIINGO_API_KEY`** (optional, for real pre/post-market prices) — register at <https://www.tiingo.com> (free), copy the token from your account's API page. When set alongside Finnhub, Tiingo's IEX feed supplies pre-market/after-hours prices (Finnhub's free tier only reliably covers the regular session). Note: Tiingo free is IEX-only, so extended-hours prints can be sparse for thinly-traded tickers.
-- **`SNAPTRADE_CLIENT_ID`** and **`SNAPTRADE_CONSUMER_KEY`** — sign up at <https://dashboard.snaptrade.com>, verify your email, then on the API Keys page copy the **Client ID** and **Consumer Key** (the Consumer Key is a secret — keep it private).
-- **`SNAPTRADE_USER_ID`** — for a personal SnapTrade key this is the **email you signed up with**. SnapTrade auto-creates one user for your account at signup, so you don't invent or register a new id.
-- **Link your brokerage (e.g. Fidelity):** SnapTrade needs your brokerage account connected before any holdings appear, through SnapTrade's Connection Portal. You new `http://localhost:38080/sync` API can't pull data until it's linked.
-
-**Get `SNAPTRADE_USER_SECRET` with one command:**
-
-SnapTrade never shows the user secret in the dashboard, and you can't fetch it with `registerUser` (your user already exists). Instead, mint one with the **reset/rotate** endpoint, which returns a fresh secret given just your `userId`. This needs only Python 3 (preinstalled on macOS and most Linux) — no Docker, no SDK, nothing to install. Replace the three bracketed placeholders (keep the double quotes) and run it in your terminal:
-
-```bash
-python3 -c '
-import json,hmac,hashlib,base64,time,urllib.request,urllib.error
-clientId="[REPLACE_WITH_YOUR_SNAPTRADE_CLIENT_ID]"
-consumerKey="[REPLACE_WITH_YOUR_SNAPTRADE_CONSUMER_KEY]"
-userId="[REPLACE_WITH_YOUR_SNAPTRADE_EMAIL]"
-query="clientId="+clientId+"&timestamp="+str(int(time.time()))
-body={"userId":userId}
-sigContent=json.dumps({"content":body,"path":"/api/v1/snapTrade/resetUserSecret","query":query},separators=(",",":"),sort_keys=True)
-sig=base64.b64encode(hmac.new(consumerKey.encode(),sigContent.encode(),hashlib.sha256).digest()).decode()
-req=urllib.request.Request("https://api.snaptrade.com/api/v1/snapTrade/resetUserSecret?"+query,data=json.dumps(body).encode(),headers={"Content-Type":"application/json","Signature":sig},method="POST")
-try: print("SNAPTRADE_USER_SECRET="+json.load(urllib.request.urlopen(req))["userSecret"])
-except urllib.error.HTTPError as e: print("Error",e.code,e.read().decode())
-'
-```
-
-Paste the resulting `SNAPTRADE_USER_SECRET=…` (UUID format) into `.env-finance`.
-
-> ⚠️ This **rotates** the secret — run it once and save the result. Each call invalidates the previous secret, so if you run it again you must update `.env-finance` with the new value and restart the stack.
 
 ## Exposed ports
 
