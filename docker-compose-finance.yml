@@ -45,6 +45,8 @@ services:
       # Day-resolution time-axis ticks show weekday + date (e.g. "Mon 6/23").
       # Applies to day-level ticks (1/2/5 Mkt Day + Last 7d views); intraday
       # ticks stay HH:mm and month/year ranges are unaffected.
+      # use_browser_locale must be off or the interval_* formats are ignored.
+      GF_DATE_FORMATS_USE_BROWSER_LOCALE: "false"
       GF_DATE_FORMATS_INTERVAL_DAY: "ddd M/D"
     volumes:
       - portfolio_grafana_data:/var/lib/grafana
