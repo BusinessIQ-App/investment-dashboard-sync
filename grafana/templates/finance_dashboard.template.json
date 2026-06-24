@@ -2117,9 +2117,66 @@
       "1h",
       "2h",
       "1d"
+    ],
+    "quick_ranges": [
+      {
+        "display": "1 Mkt Day",
+        "from": "now/d+4h",
+        "to": "now"
+      },
+      {
+        "display": "2 Mkt Days",
+        "from": "now-3d/d+4h",
+        "to": "now"
+      },
+      {
+        "display": "5 Mkt Days",
+        "from": "now-6d/d+4h",
+        "to": "now"
+      },
+      {
+        "display": "Today",
+        "from": "now/d",
+        "to": "now"
+      },
+      {
+        "display": "Last 6 hours",
+        "from": "now-6h",
+        "to": "now"
+      },
+      {
+        "display": "Last 12 hours",
+        "from": "now-12h",
+        "to": "now"
+      },
+      {
+        "display": "Last 24 hours",
+        "from": "now-24h",
+        "to": "now"
+      },
+      {
+        "display": "Last 7 days",
+        "from": "now-7d",
+        "to": "now"
+      },
+      {
+        "display": "Last 30 days",
+        "from": "now-30d",
+        "to": "now"
+      },
+      {
+        "display": "This week",
+        "from": "now/w",
+        "to": "now"
+      },
+      {
+        "display": "This month",
+        "from": "now/M",
+        "to": "now"
+      }
     ]
   },
-  "timezone": "browser",
+  "timezone": "America/New_York",
   "title": "finance_dashboard",
   "version": 8,
   "uid": "ad8jkxh",
