@@ -23,7 +23,10 @@ services:
   # grafana/ files — just this compose file and .env-finance.
   grafana-init:
     image: ghcr.io/businessiq-app/investment-dashboard-sync:latest
-    container_name: portfolio-grafana-init
+    # No fixed container_name: this is a one-shot (runs init-grafana.sh and
+    # exits). A fixed name leaves a stale exited container that conflicts on
+    # the next `up`; letting Compose auto-name it (finance-grafana-init-1)
+    # lets it recreate cleanly each deploy.
     env_file: .env-finance
     command: sh /app/init-grafana.sh
     volumes:
