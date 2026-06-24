@@ -258,6 +258,11 @@ See [Dashboard rendering](#dashboard-rendering) for how the template is rendered
 * Configurable Grafana admin credentials
 * Configurable dashboard manual-sync URL
 * Yahoo Finance links for ticker symbols
+* Privacy toggle to hide dollar amounts (render values as percentages) for sharing screenshots
+* Per-account filter and a regular/extended-hours price toggle
+* Adjustable top-N position filter and multi-select ticker exclusion on the history charts
+* Custom "Market Day" time ranges (1 / 2 / 5 days) anchored to the pre-market open
+* Shaded extended-hours and market-closed bands on the history charts
 
 ## Repository structure
 
