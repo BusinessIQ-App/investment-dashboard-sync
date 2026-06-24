@@ -2039,19 +2039,15 @@
       {
         "allowCustomValue": false,
         "current": {
-          "text": [
-            "None"
-          ],
-          "value": [
-            "None"
-          ]
+          "text": [],
+          "value": []
         },
         "datasource": {
           "type": "grafana-postgresql-datasource",
           "uid": "dfpli1tj8oqgwe"
         },
-        "definition": "SELECT __text, __value FROM (\n  SELECT 'None' AS __text, 'None' AS __value, 0 AS ord\n  UNION ALL\n  SELECT ticker AS __text, ticker AS __value, 1 AS ord\n  FROM (\n    SELECT DISTINCT ticker FROM holdings WHERE ticker IS NOT NULL AND ticker <> ''\n    UNION\n    SELECT DISTINCT ticker FROM holdings_history WHERE ticker IS NOT NULL AND ticker <> ''\n  ) t\n) q\nORDER BY ord, __text;",
-        "description": "Tickers to exclude from the three history graphs. 'None' (default) includes all.",
+        "definition": "SELECT ticker AS __text, ticker AS __value\nFROM (\n  SELECT DISTINCT ticker FROM holdings WHERE ticker IS NOT NULL AND ticker <> ''\n  UNION\n  SELECT DISTINCT ticker FROM holdings_history WHERE ticker IS NOT NULL AND ticker <> ''\n) t\nORDER BY ticker;",
+        "description": "Tickers to exclude from the three history graphs. Leave empty to include all.",
         "hide": 0,
         "includeAll": false,
         "label": "Exclude",
@@ -2063,7 +2059,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT __text, __value FROM (\n  SELECT 'None' AS __text, 'None' AS __value, 0 AS ord\n  UNION ALL\n  SELECT ticker AS __text, ticker AS __value, 1 AS ord\n  FROM (\n    SELECT DISTINCT ticker FROM holdings WHERE ticker IS NOT NULL AND ticker <> ''\n    UNION\n    SELECT DISTINCT ticker FROM holdings_history WHERE ticker IS NOT NULL AND ticker <> ''\n  ) t\n) q\nORDER BY ord, __text;",
+          "rawSql": "SELECT ticker AS __text, ticker AS __value\nFROM (\n  SELECT DISTINCT ticker FROM holdings WHERE ticker IS NOT NULL AND ticker <> ''\n  UNION\n  SELECT DISTINCT ticker FROM holdings_history WHERE ticker IS NOT NULL AND ticker <> ''\n) t\nORDER BY ticker;",
           "refId": "StandardVariableQuery",
           "sql": {
             "columns": [
