@@ -1,3 +1,9 @@
+# Pin the Compose project name so containers/volumes resolve consistently
+# regardless of the directory this file is run from (volumes are
+# finance_portfolio_*; containers use fixed names). Without this, running
+# from a differently-named dir creates a separate project and fresh volumes.
+name: finance
+
 services:
   postgres:
     image: postgres:17
