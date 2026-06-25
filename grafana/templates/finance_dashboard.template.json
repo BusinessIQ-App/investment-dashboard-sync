@@ -43,9 +43,6 @@
           "uid": "dfpli1tj8oqgwe"
         },
         "enable": true,
-        "hide": true,
-        "iconColor": "#964e4e",
-        "name": "Closed",
         "filter": {
           "exclude": false,
           "ids": [
@@ -54,6 +51,9 @@
             11
           ]
         },
+        "hide": true,
+        "iconColor": "#964e4e",
+        "name": "Closed",
         "target": {
           "editorMode": "code",
           "format": "table",
@@ -239,7 +239,8 @@
             }
           },
           "unit": "currencyUSD"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 7,
@@ -334,7 +335,8 @@
             ]
           },
           "unit": "locale"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -407,6 +409,7 @@
             "mode": "thresholds"
           },
           "decimals": 0,
+          "noValue": "•••",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -460,9 +463,9 @@
               }
             ]
           },
-          "unit": "locale",
-          "noValue": "•••"
-        }
+          "unit": "locale"
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1242,7 +1245,8 @@
             ]
           },
           "unit": "currencyUSD"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 5,
@@ -1364,7 +1368,8 @@
             ]
           },
           "unit": "currencyUSD"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 5,
@@ -1827,6 +1832,7 @@
   "preload": false,
   "refresh": "auto",
   "schemaVersion": 42,
+  "tags": [],
   "templating": {
     "list": [
       {
@@ -1881,15 +1887,15 @@
         "type": "query"
       },
       {
-        "name": "dollars",
-        "label": "$",
-        "type": "custom",
-        "query": "On : show, % : hide",
         "current": {
           "selected": true,
           "text": "On",
           "value": "show"
         },
+        "includeAll": false,
+        "label": "$",
+        "multi": false,
+        "name": "dollars",
         "options": [
           {
             "selected": true,
@@ -1902,8 +1908,8 @@
             "value": "hide"
           }
         ],
-        "includeAll": false,
-        "multi": false
+        "query": "On : show, % : hide",
+        "type": "custom"
       },
       {
         "allowCustomValue": false,
@@ -2106,18 +2112,6 @@
     "to": "now"
   },
   "timepicker": {
-    "refresh_intervals": [
-      "5s",
-      "10s",
-      "30s",
-      "1m",
-      "5m",
-      "15m",
-      "30m",
-      "1h",
-      "2h",
-      "1d"
-    ],
     "quick_ranges": [
       {
         "display": "1 Mkt Day",
@@ -2174,11 +2168,24 @@
         "from": "now/M",
         "to": "now"
       }
+    ],
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
     ]
   },
   "timezone": "America/New_York",
   "title": "finance_dashboard",
-  "version": 8,
+  "weekStart": "",
+  "version": 12,
   "uid": "ad8jkxh",
-  "id": 2190817046540288
+  "id": 1272737001365504
 }
