@@ -1,6 +1,7 @@
 const express = require('express');
 const cron = require('node-cron');
 const { spawn } = require('child_process');
+const { getPositions, getFullPicture } = require('./portfolio');
 
 const app = express();
 const port = Number(process.env.SYNC_SERVICE_PORT || 8080);
@@ -106,6 +107,29 @@ app.post('/sync', async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(500).json(err);
+  }
+});
+
+// Live SnapTrade reads (independent of the sync schedule and the DB).
+// /positions  -> current holdings only.
+// /transactions -> holdings + open-lot buy dates + FIFO realized sells.
+app.get('/positions', async (req, res) => {
+  try {
+    const result = await getPositions();
+    res.json(result);
+  } catch (err) {
+    console.error('positions failed:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/transactions', async (req, res) => {
+  try {
+    const result = await getFullPicture();
+    res.json(result);
+  } catch (err) {
+    console.error('transactions failed:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
