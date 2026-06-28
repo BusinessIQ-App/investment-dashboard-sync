@@ -22,7 +22,4 @@ COPY grafana/templates/finance_dashboard.template.json ./grafana-assets/template
 # making the stack self-contained even without a host db/init bind mount.
 COPY db/init/001_schema.sql ./schema.sql
 
-# Favicon served by the HTTP service for the /positions-table & /transactions-table pages.
-COPY screenshots/PD_Circle.png ./assets/favicon.png
-
 CMD ["node", "sync.js"]

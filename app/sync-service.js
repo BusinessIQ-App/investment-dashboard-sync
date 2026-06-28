@@ -6,26 +6,16 @@ const { spawn } = require('child_process');
 const { getPositions, getFullPicture } = require('./portfolio');
 const { renderPositionsTable, renderTransactionsTable } = require('./render-tables');
 
-// Favicon for the HTML table pages. Baked into the image at /app/assets/favicon.png;
-// falls back to the repo's screenshots/ copy for local `npm run service`.
-function findFavicon() {
-  const candidates = [
-    path.join(__dirname, 'assets', 'favicon.png'),
-    path.join(__dirname, '..', 'screenshots', 'PD_Circle.png')
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      if (fs.existsSync(candidate)) return candidate;
-    } catch (_) {
-      // try the next candidate
-    }
+// Favicon for the HTML table pages. A small (64x64) PNG that ships in the source
+// tree at app/assets/favicon.png and is copied into the image by `COPY app/`.
+const faviconPath = (() => {
+  const candidate = path.join(__dirname, 'assets', 'favicon.png');
+  try {
+    return fs.existsSync(candidate) ? candidate : null;
+  } catch (_) {
+    return null;
   }
-
-  return null;
-}
-
-const faviconPath = findFavicon();
+})();
 
 const app = express();
 const port = Number(process.env.SYNC_SERVICE_PORT || 8080);
