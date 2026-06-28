@@ -135,9 +135,12 @@ app.get('/transactions', async (req, res) => {
 });
 
 // Same data as /positions and /transactions, rendered as browser-readable HTML tables.
+// The positions table sources from getFullPicture() (not the lightweight getPositions())
+// so the First-buy column is populated from the activity feed — the JSON /positions
+// endpoint stays activity-free and unchanged.
 app.get('/positions-table', async (req, res) => {
   try {
-    const result = await getPositions();
+    const result = await getFullPicture();
     res.type('html').send(renderPositionsTable(result));
   } catch (err) {
     console.error('positions-table failed:', err.message);
