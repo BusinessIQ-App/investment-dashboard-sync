@@ -1,6 +1,6 @@
 {
   "name": "portfolio-sync",
-  "version": "1.0.5",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "sync": "node sync.js",
