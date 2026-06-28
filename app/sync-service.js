@@ -2,6 +2,7 @@ const express = require('express');
 const cron = require('node-cron');
 const { spawn } = require('child_process');
 const { getPositions, getFullPicture } = require('./portfolio');
+const { renderPositionsTable, renderTransactionsTable } = require('./render-tables');
 
 const app = express();
 const port = Number(process.env.SYNC_SERVICE_PORT || 8080);
@@ -130,6 +131,27 @@ app.get('/transactions', async (req, res) => {
   } catch (err) {
     console.error('transactions failed:', err.message);
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Same data as /positions and /transactions, rendered as browser-readable HTML tables.
+app.get('/positions-table', async (req, res) => {
+  try {
+    const result = await getPositions();
+    res.type('html').send(renderPositionsTable(result));
+  } catch (err) {
+    console.error('positions-table failed:', err.message);
+    res.status(500).type('html').send(`<pre>positions-table error: ${err.message}</pre>`);
+  }
+});
+
+app.get('/transactions-table', async (req, res) => {
+  try {
+    const result = await getFullPicture();
+    res.type('html').send(renderTransactionsTable(result));
+  } catch (err) {
+    console.error('transactions-table failed:', err.message);
+    res.status(500).type('html').send(`<pre>transactions-table error: ${err.message}</pre>`);
   }
 });
 
